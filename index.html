@@ -212,10 +212,12 @@
     <button id="navProfile" onclick="showTab('profile')">👤<br>Profile</button>
     <button id="navAdmin" onclick="showTab('admin')">⚙️<br>Admin</button>
   </nav>
-  
+
   <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
-  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js";
+  import {
+    getFirestore, collection, doc, getDoc, setDoc, addDoc, onSnapshot
+  } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAxWlUU0aLpPN8NhOW9t7H8YBnpBnkhEGk",
@@ -234,53 +236,32 @@
   let base64Image = "", directBuyItem = null;
   const userId = "demoUser";
 
-  async function loadData() {
-    const ref = doc(db, "shopData", userId);
-    const snap = await getDoc(ref);
+  const userRef = doc(db, "shopData", userId);
+  const productRef = collection(db, "products");
+
+  async function loadUserData() {
+    const snap = await getDoc(userRef);
     if (snap.exists()) {
       const data = snap.data();
-      products = data.products || [];
       cart = data.cart || [];
       orders = data.orders || [];
       profile = data.profile || {};
     }
-    renderShop();
+    renderCart();
+    renderOrders();
+    renderProfile();
   }
 
-  async function saveData() {
-    await setDoc(doc(db, "shopData", userId), {
-      products, cart, orders, profile
+  async function saveUserData() {
+    await setDoc(userRef, {
+      cart, orders, profile
     });
   }
 
-  window.showTab = function(tab) {
-    document.querySelectorAll("section").forEach(s => s.classList.remove("active"));
-    document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
-    if (tab === 'admin') {
-      if (sessionStorage.getItem("adminAccess") === "true") {
-        document.getElementById("admin").classList.add("active");
-        document.getElementById("navAdmin").classList.add("active");
-        renderAdminProducts(); renderAdminOrders();
-      } else {
-        const password = prompt("Enter admin password:");
-        if (password === "admin123") {
-          sessionStorage.setItem("adminAccess", "true");
-          document.getElementById("admin").classList.add("active");
-          document.getElementById("navAdmin").classList.add("active");
-          renderAdminProducts(); renderAdminOrders();
-        } else {
-          alert("Incorrect password"); return;
-        }
-      }
-    } else {
-      document.querySelector(`#${tab}`).classList.add("active");
-      document.querySelector(`#nav${tab.charAt(0).toUpperCase() + tab.slice(1)}`).classList.add("active");
-      if (tab === 'shop') renderShop();
-      if (tab === 'cart') renderCart();
-      if (tab === 'orders') renderOrders();
-      if (tab === 'profile') renderProfile();
-    }
-  };
+  onSnapshot(productRef, snapshot => {
+    products = snapshot.docs.map(doc => doc.data());
+    renderShop();
+  });
 
   function renderShop() {
     const shop = document.getElementById("shop");
@@ -296,9 +277,9 @@
       </div>`).join('');
   }
 
-  window.addToCart = function(index) {
+  window.addToCart = function (index) {
     cart.push(products[index]);
-    saveData();
+    saveUserData();
     alert("Added to cart");
   };
 
@@ -316,13 +297,13 @@
       </div>`).join('') + '<button class="btn" onclick="openOrderForm()">Checkout</button>';
   }
 
-  window.removeFromCart = function(i) {
+  window.removeFromCart = function (i) {
     cart.splice(i, 1);
-    saveData();
+    saveUserData();
     renderCart();
   };
 
-  window.openOrderForm = function(index = null) {
+  window.openOrderForm = function (index = null) {
     directBuyItem = index !== null ? products[index] : null;
     document.getElementById("orderFormModal").style.display = "flex";
   };
@@ -334,10 +315,15 @@
     const address = document.getElementById("orderAddress").value;
     const items = directBuyItem ? [directBuyItem] : [...cart];
     if (!items.length) return alert("Cart is empty");
-    orders.push({ items, name, phone, address, method: "Cash on Delivery", date: new Date().toLocaleString(), status: "Pending" });
+    orders.push({
+      items, name, phone, address,
+      method: "Cash on Delivery",
+      date: new Date().toLocaleString(),
+      status: "Pending"
+    });
     if (!directBuyItem) cart = [];
     directBuyItem = null;
-    await saveData();
+    await saveUserData();
     document.getElementById("orderFormModal").style.display = "none";
     renderCart(); renderOrders();
     alert("Order placed!");
@@ -372,9 +358,9 @@
       <button class="btn" onclick="saveProfile()">Save</button>`;
   }
 
-  window.saveProfile = function() {
+  window.saveProfile = function () {
     profile.name = document.getElementById("username").value;
-    saveData();
+    saveUserData();
     alert("Profile saved");
   };
 
@@ -385,16 +371,9 @@
         <div>
           <h4>${p.name}</h4>
           <p>₹${p.price}</p>
-          <button class="btn danger" onclick="deleteProduct(${i})">Delete</button>
         </div>
       </div>`).join('');
   }
-
-  window.deleteProduct = function(i) {
-    products.splice(i, 1);
-    saveData();
-    renderShop(); renderAdminProducts();
-  };
 
   function renderAdminOrders() {
     document.getElementById("adminOrders").innerHTML = orders.slice().reverse().map((o, i, arr) => {
@@ -418,17 +397,46 @@
     }).join('');
   }
 
-  window.updateOrderStatus = function(i, val) {
+  window.updateOrderStatus = function (i, val) {
     orders[i].status = val;
-    saveData();
+    saveUserData();
     renderOrders(); renderAdminOrders();
   };
 
-  window.deleteOrder = function(index) {
+  window.deleteOrder = function (index) {
     if (confirm("Delete this order?")) {
       orders.splice(index, 1);
-      saveData();
+      saveUserData();
       renderOrders(); renderAdminOrders();
+    }
+  };
+
+  window.showTab = function (tab) {
+    document.querySelectorAll("section").forEach(s => s.classList.remove("active"));
+    document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+    if (tab === 'admin') {
+      if (sessionStorage.getItem("adminAccess") === "true") {
+        document.getElementById("admin").classList.add("active");
+        document.getElementById("navAdmin").classList.add("active");
+        renderAdminProducts(); renderAdminOrders();
+      } else {
+        const password = prompt("Enter admin password:");
+        if (password === "admin123") {
+          sessionStorage.setItem("adminAccess", "true");
+          document.getElementById("admin").classList.add("active");
+          document.getElementById("navAdmin").classList.add("active");
+          renderAdminProducts(); renderAdminOrders();
+        } else {
+          alert("Incorrect password"); return;
+        }
+      }
+    } else {
+      document.querySelector(`#${tab}`).classList.add("active");
+      document.querySelector(`#nav${tab.charAt(0).toUpperCase() + tab.slice(1)}`).classList.add("active");
+      if (tab === 'shop') renderShop();
+      if (tab === 'cart') renderCart();
+      if (tab === 'orders') renderOrders();
+      if (tab === 'profile') renderProfile();
     }
   };
 
@@ -449,16 +457,15 @@
     const name = document.getElementById("name").value;
     const price = document.getElementById("price").value;
     if (!base64Image) return alert("Select an image");
-    products.push({ name, price, image: base64Image });
-    await saveData();
+    await addDoc(productRef, { name, price, image: base64Image });
     e.target.reset();
     base64Image = "";
     document.getElementById("imagePreview").style.display = "none";
-    renderShop(); renderAdminProducts();
   });
 
-  // Start App
-  loadData();
+  // Start
+  loadUserData();
 </script>
+
 </body>
 </html>
