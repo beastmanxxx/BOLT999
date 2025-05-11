@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Modern Shop</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: linear-gradient(to bottom, #f0f4f8, #dbe9f4);
+      color: #333;
+    }
+
+    header {
+      padding: 1rem;
+      background: linear-gradient(90deg, #2196f3, #1e88e5);
+      color: white;
+      text-align: center;
+      font-size: 1.7rem;
+      font-weight: bold;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    nav {
+      display: flex;
+      justify-content: space-around;
+      background: #fff;
+      border-top: 1px solid #ddd;
+      padding: 0.5rem 0;
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+    }
+
+    nav button {
+      flex: 1;
+      padding: 0.6rem 0;
+      border: none;
+      background: none;
+      font-size: 14px;
+      color: #666;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    nav button.active {
+      color: #1e88e5;
+      font-weight: bold;
+      border-top: 3px solid #1e88e5;
+      background: linear-gradient(to top, #e3f2fd, transparent);
+    }
+
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      margin-bottom: 60px;
+    }
+
+    section {
+      display: none;
+    }
+
+    section.active {
+      display: block;
+    }
+
+    .product, .cart-item, .order-item {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      margin-bottom: 1rem;
+      padding: 1rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      transition: transform 0.2s ease;
+    }
+
+    .product:hover, .cart-item:hover {
+      transform: scale(1.02);
+    }
+
+    .product img, .cart-item img {
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+    }
+
+    .btn {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      background: #2196f3;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 0.25rem 0;
+      font-weight: 500;
+      transition: background 0.3s ease;
+    }
+
+    .btn:hover {
+      background: #1976d2;
+    }
+
+    .btn.danger {
+      background: #f44336;
+    }
+
+    .btn.danger:hover {
+      background: #d32f2f;
+    }
+
+    form input, form button, form textarea {
+      display: block;
+      margin: 0.6rem 0;
+      padding: 0.6rem;
+      width: 100%;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+    }
+
+    form input:focus, form textarea:focus {
+      outline: none;
+      border-color: #2196f3;
+      box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+    }
+
+    img.preview {
+      max-width: 100%;
+      margin-top: 0.5rem;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    #orderFormModal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+    }
+
+    #orderFormModal form {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 420px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+
+    h3 {
+      margin-bottom: 0.8rem;
+      font-size: 1.2rem;
+      color: #444;
+    }
+
+    #admin h3 {
+      margin-top: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+  <header>🛒 Modern Shop</header>
+  <main>
+    <section id="shop" class="active"></section>
+    <section id="cart"></section>
+    <section id="orders"></section>
+    <section id="profile"></section>
+    <section id="admin">
+      <form id="productForm">
+        <input type="text" id="name" placeholder="Product Name" required />
+        <input type="text" id="price" placeholder="Price (₹)" required />
+        <input type="file" id="imageFile" accept="image/*" required />
+        <img id="imagePreview" class="preview" style="display: none;" />
+        <button type="submit" class="btn">Add Product</button>
+      </form>
+      <div id="adminProducts"></div>
+      <h3>All Orders:</h3>
+      <div id="adminOrders"></div>
+    </section>
+  </main>
+  <div id="orderFormModal">
+    <form id="orderForm">
+      <h3>Enter Delivery Info</h3>
+      <input type="text" id="orderName" placeholder="Your Name" required />
+      <input type="tel" id="orderPhone" placeholder="Phone Number" required />
+      <textarea id="orderAddress" placeholder="Address" required></textarea>
+      <button class="btn" type="submit">Place Order</button>
+    </form>
+  </div>
+  <nav>
+    <button id="navShop" class="active" onclick="showTab('shop')">🛍<br>Shop</button>
+    <button id="navCart" onclick="showTab('cart')">🛒<br>Cart</button>
+    <button id="navOrders" onclick="showTab('orders')">📦<br>Orders</button>
+    <button id="navProfile" onclick="showTab('profile')">👤<br>Profile</button>
+    <button id="navAdmin" onclick="showTab('admin')">⚙️<br>Admin</button>
+  </nav>
+  
+  <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAxWlUU0aLpPN8NhOW9t7H8YBnpBnkhEGk",
+    authDomain: "beast-cart.firebaseapp.com",
+    projectId: "beast-cart",
+    storageBucket: "beast-cart.firebasestorage.app",
+    messagingSenderId: "302381318826",
+    appId: "1:302381318826:web:994545e108a74539a8c6d3",
+    measurementId: "G-3H3NC68J75"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  let products = [], cart = [], orders = [], profile = {};
+  let base64Image = "", directBuyItem = null;
+  const userId = "demoUser";
+
+  async function loadData() {
+    const ref = doc(db, "shopData", userId);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const data = snap.data();
+      products = data.products || [];
+      cart = data.cart || [];
+      orders = data.orders || [];
+      profile = data.profile || {};
+    }
+    renderShop();
+  }
+
+  async function saveData() {
+    await setDoc(doc(db, "shopData", userId), {
+      products, cart, orders, profile
+    });
+  }
+
+  window.showTab = function(tab) {
+    document.querySelectorAll("section").forEach(s => s.classList.remove("active"));
+    document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+    if (tab === 'admin') {
+      if (sessionStorage.getItem("adminAccess") === "true") {
+        document.getElementById("admin").classList.add("active");
+        document.getElementById("navAdmin").classList.add("active");
+        renderAdminProducts(); renderAdminOrders();
+      } else {
+        const password = prompt("Enter admin password:");
+        if (password === "admin123") {
+          sessionStorage.setItem("adminAccess", "true");
+          document.getElementById("admin").classList.add("active");
+          document.getElementById("navAdmin").classList.add("active");
+          renderAdminProducts(); renderAdminOrders();
+        } else {
+          alert("Incorrect password"); return;
+        }
+      }
+    } else {
+      document.querySelector(`#${tab}`).classList.add("active");
+      document.querySelector(`#nav${tab.charAt(0).toUpperCase() + tab.slice(1)}`).classList.add("active");
+      if (tab === 'shop') renderShop();
+      if (tab === 'cart') renderCart();
+      if (tab === 'orders') renderOrders();
+      if (tab === 'profile') renderProfile();
+    }
+  };
+
+  function renderShop() {
+    const shop = document.getElementById("shop");
+    shop.innerHTML = products.map((p, i) => `
+      <div class="product">
+        <img src="${p.image}" alt="${p.name}" />
+        <div>
+          <h3>${p.name}</h3>
+          <p>₹${p.price}</p>
+          <button class="btn" onclick="addToCart(${i})">Add to Cart</button>
+          <button class="btn" onclick="openOrderForm(${i})">Buy Now</button>
+        </div>
+      </div>`).join('');
+  }
+
+  window.addToCart = function(index) {
+    cart.push(products[index]);
+    saveData();
+    alert("Added to cart");
+  };
+
+  function renderCart() {
+    const cartEl = document.getElementById("cart");
+    if (!cart.length) return cartEl.innerHTML = '<p>Your cart is empty</p>';
+    cartEl.innerHTML = cart.map((p, i) => `
+      <div class="cart-item">
+        <img src="${p.image}" />
+        <div>
+          <h4>${p.name}</h4>
+          <p>₹${p.price}</p>
+          <button class="btn danger" onclick="removeFromCart(${i})">Remove</button>
+        </div>
+      </div>`).join('') + '<button class="btn" onclick="openOrderForm()">Checkout</button>';
+  }
+
+  window.removeFromCart = function(i) {
+    cart.splice(i, 1);
+    saveData();
+    renderCart();
+  };
+
+  window.openOrderForm = function(index = null) {
+    directBuyItem = index !== null ? products[index] : null;
+    document.getElementById("orderFormModal").style.display = "flex";
+  };
+
+  document.getElementById("orderForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    const name = document.getElementById("orderName").value;
+    const phone = document.getElementById("orderPhone").value;
+    const address = document.getElementById("orderAddress").value;
+    const items = directBuyItem ? [directBuyItem] : [...cart];
+    if (!items.length) return alert("Cart is empty");
+    orders.push({ items, name, phone, address, method: "Cash on Delivery", date: new Date().toLocaleString(), status: "Pending" });
+    if (!directBuyItem) cart = [];
+    directBuyItem = null;
+    await saveData();
+    document.getElementById("orderFormModal").style.display = "none";
+    renderCart(); renderOrders();
+    alert("Order placed!");
+  });
+
+  function renderOrders() {
+    const ordersEl = document.getElementById("orders");
+    if (!orders.length) return ordersEl.innerHTML = '<p>No orders yet</p>';
+    ordersEl.innerHTML = orders.slice().reverse().map(o => `
+      <div class="order-item" style="flex-direction: column; align-items: flex-start;">
+        <p><strong>Date:</strong> ${o.date}</p>
+        <p><strong>Status:</strong> ${o.status}</p>
+        <p><strong>Name:</strong> ${o.name}</p>
+        <p><strong>Phone:</strong> ${o.phone}</p>
+        <p><strong>Address:</strong> ${o.address}</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 0.5rem;">
+          ${o.items.map(item => `
+            <div style="text-align: center;">
+              <img src="${item.image}" style="width: 60px; height: 60px; border-radius: 6px;" />
+              <p style="font-size: 12px;">${item.name}</p>
+            </div>
+          `).join('')}
+        </div>
+      </div>`).join('');
+  }
+
+  function renderProfile() {
+    const profileEl = document.getElementById("profile");
+    profileEl.innerHTML = `
+      <h3>Your Info</h3>
+      <input type="text" id="username" placeholder="Your Name" value="${profile.name || ''}" />
+      <button class="btn" onclick="saveProfile()">Save</button>`;
+  }
+
+  window.saveProfile = function() {
+    profile.name = document.getElementById("username").value;
+    saveData();
+    alert("Profile saved");
+  };
+
+  function renderAdminProducts() {
+    document.getElementById("adminProducts").innerHTML = products.map((p, i) => `
+      <div class="product">
+        <img src="${p.image}" />
+        <div>
+          <h4>${p.name}</h4>
+          <p>₹${p.price}</p>
+          <button class="btn danger" onclick="deleteProduct(${i})">Delete</button>
+        </div>
+      </div>`).join('');
+  }
+
+  window.deleteProduct = function(i) {
+    products.splice(i, 1);
+    saveData();
+    renderShop(); renderAdminProducts();
+  };
+
+  function renderAdminOrders() {
+    document.getElementById("adminOrders").innerHTML = orders.slice().reverse().map((o, i, arr) => {
+      const realIndex = orders.length - 1 - i;
+      return `
+        <div class="order-item" style="flex-direction: column; align-items: flex-start;">
+          <p><strong>${o.date}</strong></p>
+          <p><strong>Name:</strong> ${o.name}</p>
+          <p><strong>Phone:</strong> ${o.phone}</p>
+          <p><strong>Address:</strong> ${o.address}</p>
+          <p>Items: ${o.items.map(x => x.name).join(', ')}</p>
+          <p>Status: 
+            <select onchange="updateOrderStatus(${realIndex}, this.value)">
+              <option ${o.status === 'Pending' ? 'selected' : ''}>Pending</option>
+              <option ${o.status === 'Shipped' ? 'selected' : ''}>Shipped</option>
+              <option ${o.status === 'Delivered' ? 'selected' : ''}>Delivered</option>
+            </select>
+          </p>
+          <button class="btn danger" onclick="deleteOrder(${realIndex})">Delete</button>
+        </div>`;
+    }).join('');
+  }
+
+  window.updateOrderStatus = function(i, val) {
+    orders[i].status = val;
+    saveData();
+    renderOrders(); renderAdminOrders();
+  };
+
+  window.deleteOrder = function(index) {
+    if (confirm("Delete this order?")) {
+      orders.splice(index, 1);
+      saveData();
+      renderOrders(); renderAdminOrders();
+    }
+  };
+
+  document.getElementById("imageFile").addEventListener("change", function () {
+    const file = this.files[0];
+    const reader = new FileReader();
+    reader.onloadend = function () {
+      base64Image = reader.result;
+      const preview = document.getElementById("imagePreview");
+      preview.src = base64Image;
+      preview.style.display = "block";
+    };
+    if (file) reader.readAsDataURL(file);
+  });
+
+  document.getElementById("productForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const name = document.getElementById("name").value;
+    const price = document.getElementById("price").value;
+    if (!base64Image) return alert("Select an image");
+    products.push({ name, price, image: base64Image });
+    await saveData();
+    e.target.reset();
+    base64Image = "";
+    document.getElementById("imagePreview").style.display = "none";
+    renderShop(); renderAdminProducts();
+  });
+
+  // Start App
+  loadData();
+</script>
+</body>
+</html>
