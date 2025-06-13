@@ -2314,54 +2314,71 @@
             const [currentPage, setCurrentPage] = React.useState('login');
             const [showInstallMessage, setShowInstallMessage] = React.useState(false);
             const [navigationHistory, setNavigationHistory] = React.useState(() => {
-                // Initialize from localStorage if available, otherwise start with login
                 const savedHistory = localStorage.getItem('navigationHistory');
                 return savedHistory ? JSON.parse(savedHistory) : ['login'];
             });
+
+            // Handle browser back/forward buttons and Android back button
+            React.useEffect(() => {
+                const handlePopState = async (event) => {
+                    if (navigationHistory.length > 1) {
+                        await showLoader();
+                        const newHistory = [...navigationHistory];
+                        newHistory.pop();
+                        const previousPage = newHistory[newHistory.length - 1];
+                        setCurrentPage(previousPage);
+                        setNavigationHistory(newHistory);
+                    }
+                };
+
+                // Add event listener for browser back/forward buttons
+                window.addEventListener('popstate', handlePopState);
+
+                // Handle Android back button
+                if ('ontouchstart' in window) {
+                    window.addEventListener('keydown', (event) => {
+                        if (event.key === 'Backspace' || event.key === 'Escape') {
+                            event.preventDefault();
+                            handlePopState();
+                        }
+                    });
+                }
+
+                return () => {
+                    window.removeEventListener('popstate', handlePopState);
+                    window.removeEventListener('keydown', handlePopState);
+                };
+            }, [navigationHistory]);
 
             // Save navigation history to localStorage whenever it changes
             React.useEffect(() => {
                 localStorage.setItem('navigationHistory', JSON.stringify(navigationHistory));
             }, [navigationHistory]);
 
-            // Handle PWA installation
-            React.useEffect(() => {
-                let deferredPrompt;
-                window.addEventListener('beforeinstallprompt', (e) => {
-                    e.preventDefault();
-                    deferredPrompt = e;
-                    window.deferredPrompt = deferredPrompt;
-                });
-
-                window.addEventListener('appinstalled', () => {
-                    setShowInstallMessage(true);
-                    setTimeout(() => {
-                        setShowInstallMessage(false);
-                    }, 3000);
-                });
-            }, []);
-
             const navigateTo = async (page) => {
                 await showLoader();
                 setCurrentPage(page);
                 setNavigationHistory(prev => {
                     const newHistory = [...prev, page];
-                    // Limit history to last 10 pages to prevent excessive storage
                     if (newHistory.length > 10) {
                         return newHistory.slice(-10);
                     }
                     return newHistory;
                 });
+                // Push new state to history
+                window.history.pushState({ page }, '');
             };
 
             const navigateBack = async () => {
                 if (navigationHistory.length > 1) {
                     await showLoader();
                     const newHistory = [...navigationHistory];
-                    newHistory.pop(); // Remove current page
+                    newHistory.pop();
                     const previousPage = newHistory[newHistory.length - 1];
                     setCurrentPage(previousPage);
                     setNavigationHistory(newHistory);
+                    // Go back in browser history
+                    window.history.back();
                 }
             };
 
