@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOLT999 - Mines Game</title>
+    <meta name="theme-color" content="#111827">
+    <meta name="description" content="Beast Earn - Play Color Prediction and Mine games to win real money!">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="logo.avif">
+    <link rel="icon" href="logo.avif" type="image/avif">
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="firebase-config.js"></script>
+
+    <style>
+        body {
+            font-family: sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background-color: #000000;
+        }
+        .mines-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            width: 100%;
+            max-width: 320px;
+            margin: 0 auto;
+        }
+        .mine-box {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            background-color: #374151;
+            border: 2px solid #ca8a04;
+            color: #fefce8;
+        }
+        .mine-box:hover:not(.safe):not(.mine):not(.disabled-box) {
+            transform: scale(1.05);
+            background-color: #4b5563;
+        }
+        .mine-box.safe {
+            background-color: #eab308;
+            color: black;
+            border-color: #facc15;
+        }
+        .mine-box.mine {
+            background-color: #1f2937;
+            color: white;
+            border-color: #ef4444;
+        }
+        .mine-box.safe_revealed {
+            background-color: #ca8a04;
+            color: white;
+            border-color: #eab308;
+        }
+        .mine-box.disabled-box {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .mine-box img {
+            width: 80%;
+            height: 80%;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // Logo Component
+        const Logo = ({ onClick }) => (
+            <div 
+                className="w-16 h-16 rounded-full overflow-hidden border-4 border-yellow-400 shadow-lg cursor-pointer hover:scale-105 transition-transform"
+                onClick={onClick}
+            >
+                <img src="logo.avif" alt="Beast Earn Logo" className="w-full h-full object-cover" />
+            </div>
+        );
+
+        // Mines Game Component
+        const MinesGame = () => {
+            const [betAmount, setBetAmount] = React.useState(10);
+            const [mines, setMines] = React.useState([]);
+            const [revealed, setRevealed] = React.useState([]);
+            const [gameOver, setGameOver] = React.useState(false);
+            const [userBalance, setUserBalance] = React.useState(0);
+            const [isLoading, setIsLoading] = React.useState(false);
+            const [multiplier, setMultiplier] = React.useState(1);
+
+            React.useEffect(() => {
+                // Check authentication
+                const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+                    if (!user) {
+                        window.location.href = 'auth.html';
+                    } else {
+                        // Load user balance
+                        loadUserBalance(user.uid);
+                    }
+                });
+
+                return () => unsubscribe();
+            }, []);
+
+            const loadUserBalance = async (userId) => {
+                try {
+                    const userDoc = await firebase.firestore().collection('users').doc(userId).get();
+                    if (userDoc.exists) {
+                        setUserBalance(userDoc.data().balance || 0);
+                    }
+                } catch (error) {
+                    console.error('Error loading balance:', error);
+                }
+            };
+
+            const startGame = async () => {
+                if (betAmount <= 0 || betAmount > userBalance) return;
+
+                setIsLoading(true);
+                try {
+                    const user = firebase.auth().currentUser;
+                    const userRef = firebase.firestore().collection('users').doc(user.uid);
+                    
+                    // Deduct bet amount
+                    await userRef.update({
+                        balance: firebase.firestore.FieldValue.increment(-betAmount)
+                    });
+
+                    // Generate mines
+                    const totalBoxes = 25;
+                    const mineCount = 5;
+                    const minePositions = new Set();
+                    while (minePositions.size < mineCount) {
+                        minePositions.add(Math.floor(Math.random() * totalBoxes));
+                    }
+
+                    const newMines = Array(totalBoxes).fill(false);
+                    minePositions.forEach(pos => newMines[pos] = true);
+
+                    setMines(newMines);
+                    setRevealed([]);
+                    setGameOver(false);
+                    setMultiplier(1);
+                    setUserBalance(prev => prev - betAmount);
+                } catch (error) {
+                    console.error('Error starting game:', error);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            const handleBoxClick = async (index) => {
+                if (gameOver || revealed.includes(index) || isLoading) return;
+
+                setIsLoading(true);
+                try {
+                    if (mines[index]) {
+                        // Hit a mine
+                        setGameOver(true);
+                        const newRevealed = [...revealed, index];
+                        setRevealed(newRevealed);
+                    } else {
+                        // Safe box
+                        const newRevealed = [...revealed, index];
+                        setRevealed(newRevealed);
+                        setMultiplier(prev => prev + 0.1);
+                    }
+                } catch (error) {
+                    console.error('Error handling box click:', error);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            const cashOut = async () => {
+                if (revealed.length === 0 || gameOver) return;
+
+                setIsLoading(true);
+                try {
+                    const user = firebase.auth().currentUser;
+                    const userRef = firebase.firestore().collection('users').doc(user.uid);
+                    
+                    const winAmount = Math.floor(betAmount * multiplier);
+                    await userRef.update({
+                        balance: firebase.firestore.FieldValue.increment(winAmount)
+                    });
+
+                    setUserBalance(prev => prev + winAmount);
+                    setGameOver(true);
+                } catch (error) {
+                    console.error('Error cashing out:', error);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-900 text-white p-4">
+                    <div className="max-w-4xl mx-auto">
+                        <div className="flex justify-between items-center mb-8">
+                            <Logo onClick={() => window.location.href = 'index.html'} />
+                            <div className="text-right">
+                                <p className="text-yellow-400 font-bold">Balance: ₹{userBalance}</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {/* Game Controls */}
+                            <div className="bg-gray-800 p-6 rounded-xl">
+                                <h2 className="text-2xl font-bold text-yellow-400 mb-4">Mines Game</h2>
+                                
+                                <div className="mb-6">
+                                    <label className="block text-gray-300 mb-2">Bet Amount</label>
+                                    <input
+                                        type="number"
+                                        value={betAmount}
+                                        onChange={(e) => setBetAmount(Number(e.target.value))}
+                                        className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white"
+                                        min="10"
+                                        max={userBalance}
+                                        disabled={!gameOver && revealed.length > 0}
+                                    />
+                                </div>
+
+                                {gameOver || revealed.length === 0 ? (
+                                    <button
+                                        onClick={startGame}
+                                        disabled={isLoading || betAmount > userBalance}
+                                        className="w-full py-3 bg-yellow-400 text-black font-bold rounded-lg hover:bg-yellow-500 disabled:opacity-50"
+                                    >
+                                        {isLoading ? 'Starting...' : 'Start Game'}
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={cashOut}
+                                        disabled={isLoading}
+                                        className="w-full py-3 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 disabled:opacity-50"
+                                    >
+                                        {isLoading ? 'Processing...' : `Cash Out (${multiplier.toFixed(1)}x)`}
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Game Grid */}
+                            <div className="bg-gray-800 p-6 rounded-xl">
+                                <div className="mines-grid">
+                                    {Array(25).fill(null).map((_, index) => (
+                                        <div
+                                            key={index}
+                                            className={`mine-box ${
+                                                revealed.includes(index)
+                                                    ? mines[index]
+                                                        ? 'mine'
+                                                        : 'safe'
+                                                    : ''
+                                            } ${gameOver ? 'disabled-box' : ''}`}
+                                            onClick={() => handleBoxClick(index)}
+                                        >
+                                            {revealed.includes(index) && (
+                                                <img
+                                                    src={mines[index] ? 'boom.png' : 'coin.png'}
+                                                    alt={mines[index] ? 'Mine' : 'Safe'}
+                                                />
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Render the MinesGame component
+        ReactDOM.render(<MinesGame />, document.getElementById('root'));
+    </script>
+</body>
+</html> 

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOLT999 - Color Prediction</title>
+    <meta name="theme-color" content="#111827">
+    <meta name="description" content="Beast Earn - Play Color Prediction and Mine games to win real money!">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="logo.avif">
+    <link rel="icon" href="logo.avif" type="image/avif">
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="firebase-config.js"></script>
+
+    <style>
+        body {
+            font-family: sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background-color: #000000;
+        }
+        @keyframes pulse-result {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pulse-result {
+            animation: pulse-result 0.5s ease-out forwards;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // Logo Component
+        const Logo = ({ onClick }) => (
+            <div 
+                className="w-16 h-16 rounded-full overflow-hidden border-4 border-yellow-400 shadow-lg cursor-pointer hover:scale-105 transition-transform"
+                onClick={onClick}
+            >
+                <img src="logo.avif" alt="Beast Earn Logo" className="w-full h-full object-cover" />
+            </div>
+        );
+
+        // Color Prediction Component
+        const ColorPrediction = () => {
+            const [betAmount, setBetAmount] = React.useState(10);
+            const [selectedColor, setSelectedColor] = React.useState(null);
+            const [isPlaying, setIsPlaying] = React.useState(false);
+            const [result, setResult] = React.useState(null);
+            const [history, setHistory] = React.useState([]);
+            const [userBalance, setUserBalance] = React.useState(0);
+            const [isLoading, setIsLoading] = React.useState(false);
+
+            React.useEffect(() => {
+                // Check authentication
+                const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+                    if (!user) {
+                        window.location.href = 'auth.html';
+                    } else {
+                        // Load user balance
+                        loadUserBalance(user.uid);
+                    }
+                });
+
+                return () => unsubscribe();
+            }, []);
+
+            const loadUserBalance = async (userId) => {
+                try {
+                    const userDoc = await firebase.firestore().collection('users').doc(userId).get();
+                    if (userDoc.exists) {
+                        setUserBalance(userDoc.data().balance || 0);
+                    }
+                } catch (error) {
+                    console.error('Error loading balance:', error);
+                }
+            };
+
+            const placeBet = async () => {
+                if (!selectedColor || betAmount <= 0 || betAmount > userBalance) return;
+
+                setIsLoading(true);
+                try {
+                    const user = firebase.auth().currentUser;
+                    const userRef = firebase.firestore().collection('users').doc(user.uid);
+                    
+                    // Deduct bet amount
+                    await userRef.update({
+                        balance: firebase.firestore.FieldValue.increment(-betAmount)
+                    });
+
+                    // Generate result
+                    const colors = ['red', 'green', 'violet'];
+                    const resultColor = colors[Math.floor(Math.random() * colors.length)];
+                    const isWin = resultColor === selectedColor;
+                    const winAmount = isWin ? betAmount * 2 : 0;
+
+                    // Update balance if won
+                    if (isWin) {
+                        await userRef.update({
+                            balance: firebase.firestore.FieldValue.increment(winAmount)
+                        });
+                    }
+
+                    // Update state
+                    setResult({ color: resultColor, isWin, winAmount });
+                    setHistory(prev => [{ color: resultColor, timestamp: new Date() }, ...prev].slice(0, 10));
+                    setUserBalance(prev => isWin ? prev + winAmount - betAmount : prev - betAmount);
+                } catch (error) {
+                    console.error('Error placing bet:', error);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-900 text-white p-4">
+                    <div className="max-w-4xl mx-auto">
+                        <div className="flex justify-between items-center mb-8">
+                            <Logo onClick={() => window.location.href = 'index.html'} />
+                            <div className="text-right">
+                                <p className="text-yellow-400 font-bold">Balance: ₹{userBalance}</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {/* Betting Section */}
+                            <div className="bg-gray-800 p-6 rounded-xl">
+                                <h2 className="text-2xl font-bold text-yellow-400 mb-4">Place Your Bet</h2>
+                                
+                                <div className="mb-6">
+                                    <label className="block text-gray-300 mb-2">Bet Amount</label>
+                                    <input
+                                        type="number"
+                                        value={betAmount}
+                                        onChange={(e) => setBetAmount(Number(e.target.value))}
+                                        className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white"
+                                        min="10"
+                                        max={userBalance}
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-4 mb-6">
+                                    {['red', 'green', 'violet'].map((color) => (
+                                        <button
+                                            key={color}
+                                            onClick={() => setSelectedColor(color)}
+                                            className={`p-4 rounded-lg text-white font-bold ${
+                                                selectedColor === color
+                                                    ? 'ring-4 ring-yellow-400'
+                                                    : 'bg-gray-700'
+                                            }`}
+                                            style={{ backgroundColor: color }}
+                                        >
+                                            {color.toUpperCase()}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <button
+                                    onClick={placeBet}
+                                    disabled={!selectedColor || isLoading || betAmount > userBalance}
+                                    className="w-full py-3 bg-yellow-400 text-black font-bold rounded-lg hover:bg-yellow-500 disabled:opacity-50"
+                                >
+                                    {isLoading ? 'Processing...' : 'Place Bet'}
+                                </button>
+                            </div>
+
+                            {/* Results Section */}
+                            <div className="bg-gray-800 p-6 rounded-xl">
+                                <h2 className="text-2xl font-bold text-yellow-400 mb-4">Results</h2>
+                                
+                                {result && (
+                                    <div className={`mb-6 p-4 rounded-lg text-center ${
+                                        result.isWin ? 'bg-green-900' : 'bg-red-900'
+                                    }`}>
+                                        <p className="text-xl font-bold">
+                                            {result.isWin ? 'You Won!' : 'You Lost'}
+                                        </p>
+                                        <p className="text-lg">
+                                            {result.isWin ? `+₹${result.winAmount}` : `-₹${betAmount}`}
+                                        </p>
+                                    </div>
+                                )}
+
+                                <div className="space-y-2">
+                                    <h3 className="text-lg font-semibold text-gray-300">Recent Results</h3>
+                                    <div className="grid grid-cols-5 gap-2">
+                                        {history.map((item, index) => (
+                                            <div
+                                                key={index}
+                                                className="p-2 rounded text-center"
+                                                style={{ backgroundColor: item.color }}
+                                            >
+                                                {item.color.charAt(0).toUpperCase()}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Render the ColorPrediction component
+        ReactDOM.render(<ColorPrediction />, document.getElementById('root'));
+    </script>
+</body>
+</html> 
