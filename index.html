@@ -5,16 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Beast Earn - Color Prediction</title>
 
-    <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#ef4444">
+    <meta name="theme-color" content="#111827">
     <meta name="description" content="Beast Earn - Play Color Prediction and Mine games to win real money!">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="logo.avif">
 
-    <!-- Favicon -->
     <link rel="icon" href="logo.avif" type="image/avif">
 
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -25,7 +22,6 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Add Tesseract.js before the closing head tag -->
     <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
 
     <style>
@@ -33,7 +29,7 @@
             font-family: sans-serif;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
-            background-color: #f0f0f0;
+            background-color: #000000; /* Black background */
         }
         @keyframes pulse-result {
             0% { transform: scale(0.8); opacity: 0.5; }
@@ -74,28 +70,28 @@
             border-radius: 8px;
             cursor: pointer;
             transition: background-color 0.2s, transform 0.1s;
-            background-color: #d97706; /* unopened - orange-700 */
-            border: 2px solid #ea580c; /* orange-800 */
-            color: #fee2e2; /* red-100 */
+            background-color: #374151; /* unopened - gray-700 */
+            border: 2px solid #ca8a04; /* golden-700 */
+            color: #fefce8; /* yellow-50 */
         }
         .mine-box:hover:not(.safe):not(.mine):not(.disabled-box) {
             transform: scale(1.05);
-            background-color: #f97316; /* orange-500 */
+            background-color: #4b5563; /* gray-600 */
         }
         .mine-box.safe {
-            background-color: #ef4444; /* Red for safe */
-            color: white;
-            border-color: #dc2626;
+            background-color: #eab308; /* Golden for safe */
+            color: black;
+            border-color: #facc15;
         }
         .mine-box.mine {
             background-color: #1f2937; /* Dark gray for mine */
             color: white;
-            border-color: #374151;
+            border-color: #ef4444; /* red border for emphasis */
         }
         .mine-box.safe_revealed {
-            background-color: #f97316; /* Orange for revealed safe (unopened) */
+            background-color: #ca8a04; /* Darker Golden for revealed safe (unopened) */
             color: white;
-            border-color: #ea580c;
+            border-color: #eab308;
         }
         .mine-box.disabled-box {
             cursor: not-allowed;
@@ -126,7 +122,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.9);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -147,7 +143,7 @@
             left: 50%;
             transform: translate(-50%, -50%);
             border-radius: 50%;
-            border: 4px solid #fbbf24;
+            border: 4px solid #facc15; /* Golden border */
             overflow: hidden;
         }
 
@@ -163,7 +159,7 @@
             height: 120px;
             border-radius: 50%;
             border: 4px solid transparent;
-            border-top-color: #fbbf24;
+            border-top-color: #facc15; /* Golden */
             animation: spin 1s linear infinite;
         }
 
@@ -180,7 +176,7 @@
             left: 5px;
             right: 5px;
             bottom: 5px;
-            border-top-color: #f59e0b;
+            border-top-color: #eab308; /* Darker Golden */
             animation: spin 2s linear infinite;
         }
 
@@ -189,7 +185,7 @@
             left: 15px;
             right: 15px;
             bottom: 15px;
-            border-top-color: #d97706;
+            border-top-color: #ca8a04; /* Even Darker Golden */
             animation: spin 3s linear infinite;
         }
 
@@ -203,7 +199,7 @@
             width: 140px;
             height: 140px;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(251, 191, 36, 0.2) 0%, rgba(251, 191, 36, 0) 70%);
+            background: radial-gradient(circle, rgba(250, 204, 21, 0.2) 0%, rgba(250, 204, 21, 0) 70%);
             animation: pulse 2s ease-in-out infinite;
         }
 
@@ -273,7 +269,7 @@
             return (
                 <button
                     onClick={playGuide}
-                    className="px-3 py-1 bg-yellow-400 text-red-800 rounded-lg font-bold hover:bg-yellow-500 transition-colors flex items-center gap-2"
+                    className="px-3 py-1 bg-yellow-400 text-black rounded-lg font-bold hover:bg-yellow-500 transition-colors flex items-center gap-2"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10"/>
@@ -318,12 +314,12 @@
             };
 
             return (
-                <div className="max-w-md mx-auto bg-gradient-to-b from-orange-400 to-red-600 min-h-screen text-white flex flex-col items-center justify-center p-4">
+                <div className="max-w-md mx-auto bg-gradient-to-b from-black to-gray-900 min-h-screen text-white flex flex-col items-center justify-center p-4">
                     <GuideButton audioFile="auth.mp3" />
                     <Logo />
                     <h1 className="text-4xl font-extrabold mb-8 text-yellow-300 drop-shadow-lg">Beast Earn</h1>
                     <h2 className="text-3xl font-bold mb-6">Login</h2>
-                    <div className="bg-white bg-opacity-20 rounded-lg p-8 w-full max-w-sm">
+                    <div className="bg-gray-800 bg-opacity-50 rounded-lg p-8 w-full max-w-sm">
                         {error && <p className="text-yellow-200 text-sm mb-4">{error}</p>}
                         <button
                             onClick={handleGoogleLogin}
@@ -372,12 +368,12 @@
             };
 
             return (
-                <div className="max-w-md mx-auto bg-gradient-to-b from-orange-400 to-red-600 min-h-screen text-white flex flex-col items-center justify-center p-4">
+                <div className="max-w-md mx-auto bg-gradient-to-b from-black to-gray-900 min-h-screen text-white flex flex-col items-center justify-center p-4">
                     <GuideButton audioFile="auth.mp3" />
                     <Logo />
                     <h1 className="text-4xl font-extrabold mb-8 text-yellow-300 drop-shadow-lg">Beast Earn</h1>
                     <h2 className="text-3xl font-bold mb-6">Register</h2>
-                    <div className="bg-white bg-opacity-20 rounded-lg p-8 w-full max-w-sm">
+                    <div className="bg-gray-800 bg-opacity-50 rounded-lg p-8 w-full max-w-sm">
                         {error && <p className="text-yellow-200 text-sm mb-4">{error}</p>}
                         <button
                             onClick={handleGoogleLogin}
@@ -405,15 +401,15 @@
 
             const getResultColor = (result) => {
                 if (result === 0) return 'bg-gradient-to-r from-red-500 to-purple-500';
-                if (result === 5) return 'bg-gradient-to-r from-green-500 to-purple-500';
+                if (result === 5) return 'bg-gradient-to-r from-yellow-500 to-purple-500';
                 if (result % 2 === 0) return 'bg-red-500';
-                return 'bg-green-500';
+                return 'bg-yellow-500';
             };
 
             return (
-                <div className="max-w-md mx-auto bg-gradient-to-b from-orange-400 to-red-600 min-h-screen text-white p-4">
+                <div className="max-w-md mx-auto bg-gradient-to-b from-black to-gray-900 min-h-screen text-white p-4">
                     <div className="flex items-center gap-2 mb-6">
-                        <button onClick={() => navigateTo('gameSelection')} className="p-2 rounded-full bg-white bg-opacity-30">
+                        <button onClick={() => navigateTo('gameSelection')} className="p-2 rounded-full bg-gray-800 bg-opacity-50">
                             <ArrowLeft className="w-5 h-5 text-white" />
                         </button>
                         <Logo />
@@ -423,28 +419,28 @@
                         </div>
                     </div>
 
-                    <div className="flex bg-white bg-opacity-20 rounded-lg mb-4 p-1">
+                    <div className="flex bg-gray-800 bg-opacity-50 rounded-lg mb-4 p-1">
                         <button
-                            className={`flex-1 py-2 text-sm font-semibold rounded-md ${activeTab === 'game' ? 'bg-white text-orange-700' : 'text-white'}`}
+                            className={`flex-1 py-2 text-sm font-semibold rounded-md ${activeTab === 'game' ? 'bg-yellow-400 text-black' : 'text-white'}`}
                             onClick={() => setActiveTab('game')}
                         >
                             Game
                         </button>
                         <button
-                            className={`flex-1 py-2 text-sm font-semibold rounded-md ${activeTab === 'deposit' ? 'bg-white text-orange-700' : 'text-white'}`}
+                            className={`flex-1 py-2 text-sm font-semibold rounded-md ${activeTab === 'deposit' ? 'bg-yellow-400 text-black' : 'text-white'}`}
                             onClick={() => setActiveTab('deposit')}
                         >
                             Deposit
                         </button>
                         <button
-                            className={`flex-1 py-2 text-sm font-semibold rounded-md ${activeTab === 'withdraw' ? 'bg-white text-orange-700' : 'text-white'}`}
+                            className={`flex-1 py-2 text-sm font-semibold rounded-md ${activeTab === 'withdraw' ? 'bg-yellow-400 text-black' : 'text-white'}`}
                             onClick={() => setActiveTab('withdraw')}
                         >
                             Withdraw
                         </button>
                     </div>
 
-                    <div className="bg-white bg-opacity-10 rounded-lg p-4">
+                    <div className="bg-gray-800 bg-opacity-30 rounded-lg p-4">
                         {activeTab === 'game' && (
                             <div>
                                 <h3 className="text-lg font-semibold mb-3">Game Play History</h3>
@@ -453,7 +449,7 @@
                                 ) : (
                                     <div className="space-y-3 max-h-96 overflow-y-auto">
                                         {gameHistory.map((game, index) => (
-                                            <div key={game.period} className="flex items-center justify-between bg-white bg-opacity-10 rounded-lg p-3">
+                                            <div key={game.period} className="flex items-center justify-between bg-black bg-opacity-20 rounded-lg p-3">
                                                 <div className="text-xs">{game.period}</div>
                                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${getResultColor(game.result)}`}>
                                                     {game.result}
@@ -462,7 +458,7 @@
                                                     {game.color ? (game.color.charAt(0).toUpperCase() + game.color.slice(1)) : ''} ({game.size})
                                                 </div>
                                                 {game.betOutcome && (
-                                                    <div className={`font-bold ${game.betOutcome.type === 'win' ? 'text-green-300' : 'text-red-300'}`}>
+                                                    <div className={`font-bold ${game.betOutcome.type === 'win' ? 'text-green-400' : 'text-red-400'}`}>
                                                         {game.betOutcome.type === 'win' ? '+' : '-'}₹{game.betOutcome.amount.toFixed(2)}
                                                     </div>
                                                 )}
@@ -481,10 +477,10 @@
                                 ) : (
                                     <div className="space-y-3 max-h-96 overflow-y-auto">
                                         {depositHistory.map((deposit, index) => (
-                                            <div key={index} className="flex items-center justify-between bg-white bg-opacity-10 rounded-lg p-3">
+                                            <div key={index} className="flex items-center justify-between bg-black bg-opacity-20 rounded-lg p-3">
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                                    <div className="text-sm font-bold text-green-300">+ ₹{deposit.amount.toFixed(2)}</div>
+                                                    <div className="text-sm font-bold text-green-400">+ ₹{deposit.amount.toFixed(2)}</div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <div className="text-xs opacity-80 truncate">{deposit.utr}</div>
@@ -513,10 +509,10 @@
                                             const isCompleted = timeDiff >= 10;
 
                                             return (
-                                                <div key={index} className="flex items-center justify-between bg-white bg-opacity-10 rounded-lg p-3">
+                                                <div key={index} className="flex items-center justify-between bg-black bg-opacity-20 rounded-lg p-3">
                                                     <div className="flex items-center gap-2">
                                                         <div className={`w-2 h-2 rounded-full ${isCompleted ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                                                        <div className="text-sm font-bold text-red-300">- ₹{withdraw.amount.toFixed(2)}</div>
+                                                        <div className="text-sm font-bold text-red-400">- ₹{withdraw.amount.toFixed(2)}</div>
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <div className="text-xs opacity-80 truncate">{withdraw.upiId}</div>
@@ -957,9 +953,9 @@
             };
 
             return (
-                <div className="max-w-md mx-auto bg-gradient-to-b from-orange-400 to-red-600 min-h-screen text-white p-4">
+                <div className="max-w-md mx-auto bg-gradient-to-b from-black to-gray-900 min-h-screen text-white p-4">
                     <div className="flex items-center gap-2 mb-6">
-                        <button onClick={() => navigateTo('gameSelection')} className="p-2 rounded-full bg-white bg-opacity-30">
+                        <button onClick={() => navigateTo('gameSelection')} className="p-2 rounded-full bg-gray-800 bg-opacity-50">
                             <ArrowLeft className="w-5 h-5 text-white" />
                         </button>
                         <Logo />
@@ -967,7 +963,7 @@
                         <div className="ml-auto flex gap-2 items-center">
                             <button
                                 onClick={() => navigateTo('history', { initialTab: 'deposit' })}
-                                className="px-3 py-1 bg-white bg-opacity-30 rounded-lg text-sm font-semibold hover:bg-opacity-50 transition-colors"
+                                className="px-3 py-1 bg-gray-800 bg-opacity-50 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
                             >
                                 History
                             </button>
@@ -975,7 +971,7 @@
                         </div>
                     </div>
 
-                    <div className="bg-white bg-opacity-20 rounded-lg p-6 mb-4">
+                    <div className="bg-gray-800 bg-opacity-50 rounded-lg p-6 mb-4">
                         {upiQrCodeUrl && (
                             <div className="mb-4 text-center">
                                 <p className="text-sm font-semibold mb-2">Scan QR to Pay</p>
@@ -992,8 +988,8 @@
                                     onClick={() => setDepositAmount(amount.toString())}
                                     className={`p-3 rounded-lg font-bold transition-colors ${
                                         depositAmount === amount.toString()
-                                            ? 'bg-yellow-400 text-red-800'
-                                            : 'bg-white bg-opacity-20 text-white hover:bg-opacity-30'
+                                            ? 'bg-yellow-400 text-black'
+                                            : 'bg-gray-700 bg-opacity-50 text-white hover:bg-gray-600'
                                     }`}
                                 >
                                     ₹{amount}
@@ -1003,12 +999,12 @@
 
                         <button
                             onClick={handlePayRedirect}
-                            className="w-full bg-yellow-400 py-3 rounded-lg font-bold text-red-800 hover:bg-yellow-500 transition-colors mb-3"
+                            className="w-full bg-yellow-400 py-3 rounded-lg font-bold text-black hover:bg-yellow-500 transition-colors mb-3"
                         >
                             Pay to Deposit
                         </button>
 
-                        <hr className="border-t border-white border-opacity-30 my-4" />
+                        <hr className="border-t border-gray-700 my-4" />
 
                         <label htmlFor="utr-number" className="block text-sm font-semibold mb-2">Enter UTR / Transaction ID</label>
                         <input
@@ -1016,7 +1012,7 @@
                             type="text"
                             value={utrNumber}
                             onChange={(e) => setUtrNumber(e.target.value)}
-                            className="w-full p-3 rounded-lg text-gray-900 mb-4 focus:outline-none focus:ring-2 focus:ring-orange-300"
+                            className="w-full p-3 rounded-lg bg-gray-200 text-gray-900 mb-4 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                             placeholder="e.g., 401234567890"
                         />
 
@@ -1034,10 +1030,10 @@
                             type="file"
                             accept="image/png"
                             onChange={handleFileChange}
-                            className="w-full text-sm text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-yellow-400 file:text-red-800 hover:file:bg-yellow-500 mb-4"
+                            className="w-full text-sm text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-yellow-400 file:text-black hover:file:bg-yellow-500 mb-4"
                         />
                         {paymentScreenshot && (
-                            <div className="text-sm text-green-200 mb-4">
+                            <div className="text-sm text-green-300 mb-4">
                                 <p>File selected: {paymentScreenshot.name}</p>
                                 <p className="text-xs opacity-80">Size: {(paymentScreenshot.size / 1024).toFixed(1)}KB</p>
                             </div>
@@ -1045,7 +1041,7 @@
 
                         <button
                             onClick={handleManualConfirmation}
-                            className="w-full bg-yellow-400 py-3 rounded-lg font-bold text-red-800 hover:bg-yellow-500 transition-colors"
+                            className="w-full bg-yellow-400 py-3 rounded-lg font-bold text-black hover:bg-yellow-500 transition-colors"
                         >
                             Confirm Payment (I have Paid)
                         </button>
@@ -1061,9 +1057,9 @@
                         )}
                     </div>
 
-                    <div className="bg-white bg-opacity-10 rounded-lg p-4">
-                        <h3 className="text-lg font-semibold mb-2">Deposit Instructions:</h3>
-                        <ul className="text-sm list-disc pl-5 space-y-2">
+                    <div className="bg-gray-800 bg-opacity-30 rounded-lg p-4">
+                        <h3 className="text-lg font-semibold mb-2 text-yellow-300">Deposit Instructions:</h3>
+                        <ul className="text-sm list-disc pl-5 space-y-2 text-gray-300">
                             <li>Select the amount you wish to deposit from the available options.</li>
                             <li>Scan the QR code or click **"Pay to Deposit"** to open your UPI app.</li>
                             <li>Complete the payment using your preferred UPI app to the UPI ID: <span className="font-bold text-yellow-300">{upiId}</span></li>
@@ -1157,9 +1153,9 @@
             };
 
             return (
-                <div className="max-w-md mx-auto bg-gradient-to-b from-orange-400 to-red-600 min-h-screen text-white p-4">
+                <div className="max-w-md mx-auto bg-gradient-to-b from-black to-gray-900 min-h-screen text-white p-4">
                     <div className="flex items-center gap-2 mb-6">
-                        <button onClick={() => navigateTo('gameSelection')} className="p-2 rounded-full bg-white bg-opacity-30">
+                        <button onClick={() => navigateTo('gameSelection')} className="p-2 rounded-full bg-gray-800 bg-opacity-50">
                             <ArrowLeft className="w-5 h-5 text-white" />
                         </button>
                         <Logo />
@@ -1167,7 +1163,7 @@
                         <div className="ml-auto flex gap-2 items-center">
                             <button
                                 onClick={() => navigateTo('history', { initialTab: 'withdraw' })}
-                                className="px-3 py-1 bg-white bg-opacity-30 rounded-lg text-sm font-semibold hover:bg-opacity-50 transition-colors"
+                                className="px-3 py-1 bg-gray-800 bg-opacity-50 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
                             >
                                 History
                             </button>
@@ -1175,9 +1171,9 @@
                         </div>
                     </div>
 
-                    <div className="bg-white bg-opacity-20 rounded-lg p-6 mb-4">
+                    <div className="bg-gray-800 bg-opacity-50 rounded-lg p-6 mb-4">
                         <div className="text-center mb-4">
-                            <div className="text-xl font-bold">Current Balance: ₹{balance.toFixed(2)}</div>
+                            <div className="text-xl font-bold">Current Balance: <span className="text-yellow-300">₹{balance.toFixed(2)}</span></div>
                         </div>
                         <label className="block text-sm font-semibold mb-2">Select Amount (₹)</label>
                         <div className="grid grid-cols-2 gap-2 mb-4">
@@ -1187,8 +1183,8 @@
                                     onClick={() => setWithdrawAmount(amount.toString())}
                                     className={`p-3 rounded-lg font-bold transition-colors ${
                                         withdrawAmount === amount.toString()
-                                            ? 'bg-yellow-400 text-red-800'
-                                            : 'bg-white bg-opacity-20 text-white hover:bg-opacity-30'
+                                            ? 'bg-yellow-400 text-black'
+                                            : 'bg-gray-700 bg-opacity-50 text-white hover:bg-gray-600'
                                     }`}
                                 >
                                     ₹{amount}
@@ -1201,12 +1197,12 @@
                             type="text"
                             value={upiIdInput}
                             onChange={(e) => setUpiIdInput(e.target.value)}
-                            className="w-full p-3 rounded-lg text-gray-900 mb-4 focus:outline-none focus:ring-2 focus:ring-orange-300"
+                            className="w-full p-3 rounded-lg bg-gray-200 text-gray-900 mb-4 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                             placeholder="e.g., yourname@bankupi"
                         />
                         <button
                             onClick={handleWithdraw}
-                            className="w-full bg-yellow-400 py-3 rounded-lg font-bold text-red-800 hover:bg-yellow-500 transition-colors"
+                            className="w-full bg-yellow-400 py-3 rounded-lg font-bold text-black hover:bg-yellow-500 transition-colors"
                         >
                             Withdraw
                         </button>
@@ -1226,9 +1222,9 @@
                         </form>
                     </div>
 
-                    <div className="bg-white bg-opacity-10 rounded-lg p-4">
-                        <h3 className="text-lg font-semibold mb-2">Withdrawal Instructions:</h3>
-                        <ul className="text-sm list-disc pl-5 space-y-2">
+                    <div className="bg-gray-800 bg-opacity-30 rounded-lg p-4">
+                        <h3 className="text-lg font-semibold mb-2 text-yellow-300">Withdrawal Instructions:</h3>
+                        <ul className="text-sm list-disc pl-5 space-y-2 text-gray-300">
                             <li>Select the amount you wish to withdraw (₹200, ₹500, ₹1000, or ₹2000).</li>
                             <li>Enter your valid UPI ID where you want to receive the funds.</li>
                             <li>Click the **"Withdraw"** button.</li>
@@ -1254,7 +1250,7 @@
             const [showResult, setShowResult] = React.useState(false);
             const [victoryMessage, setVictoryMessage] = React.useState(null);
 
-            const colors = ['Green', 'Violet', 'Red'];
+            const colors = ['Gold', 'Violet', 'Red'];
             const numbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
             const betSizes = ['Big', 'Small'];
 
@@ -1288,12 +1284,12 @@
 
             const generateResult = () => {
                 const resultNumber = Math.floor(Math.random() * 10);
-                let resultColor = 'green';
+                let resultColor = 'gold';
 
                 if (resultNumber === 0) resultColor = 'red-violet';
-                else if (resultNumber === 5) resultColor = 'green-violet';
+                else if (resultNumber === 5) resultColor = 'gold-violet';
                 else if (resultNumber % 2 === 0) resultColor = 'red';
-                else resultColor = 'green';
+                else resultColor = 'gold';
 
                 const resultSize = resultNumber < 5 ? 'Small' : 'Big';
 
@@ -1334,13 +1330,13 @@
                 let multiplier = 0;
                 let outcome = { type: 'loss', amount: betAmount }; // Default to loss
 
-                if (selectedColor === 'Green' && (result.color === 'green' || result.color === 'green-violet')) {
+                if (selectedColor === 'Gold' && (result.color === 'gold' || result.color === 'gold-violet')) {
                     won = true;
                     multiplier = 1.96;
                 } else if (selectedColor === 'Red' && (result.color === 'red' || result.color === 'red-violet')) {
                     won = true;
                     multiplier = 1.96;
-                } else if (selectedColor === 'Violet' && (result.color === 'red-violet' || result.color === 'green-violet')) {
+                } else if (selectedColor === 'Violet' && (result.color === 'red-violet' || result.color === 'gold-violet')) {
                     won = true;
                     multiplier = 3;
                 } else if (typeof selectedColor === 'number' && selectedColor === result.result) {
@@ -1415,16 +1411,16 @@
 
             const getResultColor = (result) => {
                 if (result === 0) return 'bg-gradient-to-r from-red-500 to-purple-500';
-                if (result === 5) return 'bg-gradient-to-r from-green-500 to-purple-500';
+                if (result === 5) return 'bg-gradient-to-r from-yellow-500 to-purple-500';
                 if (result % 2 === 0) return 'bg-red-500';
-                return 'bg-green-500';
+                return 'bg-yellow-500';
             };
 
             const getColorButtonStyle = (color) => {
-                const baseStyle = "flex-1 py-3 rounded-lg font-semibold text-white transition-all duration-200 ";
-                if (color === 'Green') return baseStyle + "bg-green-500 hover:bg-green-600";
-                if (color === 'Violet') return baseStyle + "bg-purple-500 hover:bg-purple-600";
-                if (color === 'Red') return baseStyle + "bg-red-500 hover:bg-red-600";
+                const baseStyle = "flex-1 py-3 rounded-lg font-semibold text-black transition-all duration-200 ";
+                if (color === 'Gold') return baseStyle + "bg-yellow-400 hover:bg-yellow-500";
+                if (color === 'Violet') return baseStyle + "bg-purple-500 hover:bg-purple-600 text-white";
+                if (color === 'Red') return baseStyle + "bg-red-500 hover:bg-red-600 text-white";
                 return baseStyle;
             };
 
@@ -1432,28 +1428,27 @@
                 const value = e.target.value;
                 setCustomBetAmount(value);
                 if (value === '' || parseFloat(value) <= 0) {
-                    // If custom amount is empty or invalid, reset betAmount to a default or handle as needed
-                    setBetAmount(10); // Or keep it as is if selection is only made by button
+                    setBetAmount(10); 
                 } else {
                     setBetAmount(parseFloat(value));
                 }
             };
 
             return (
-                <div className="max-w-md mx-auto bg-gradient-to-b from-orange-400 to-red-500 min-h-screen text-white">
+                <div className="max-w-md mx-auto bg-gradient-to-b from-black to-gray-900 min-h-screen text-white">
                     {/* Header */}
-                    <div className="flex items-center justify-between p-4 bg-red-500">
+                    <div className="flex items-center justify-between p-4 bg-black">
                         <div className="flex items-center gap-2">
-                            <button onClick={() => navigateTo('gameSelection')} className="p-2 rounded-full bg-white bg-opacity-30">
+                            <button onClick={() => navigateTo('gameSelection')} className="p-2 rounded-full bg-gray-800 bg-opacity-50">
                                 <ArrowLeft className="w-5 h-5 text-white" />
                             </button>
                             <Logo />
-                            <span className="font-bold">Beast Earn</span>
+                            <span className="font-bold text-yellow-300">Beast Earn</span>
                         </div>
                         <div className="flex gap-2 items-center">
                             <button
                                 onClick={() => navigateTo('history')}
-                                className="px-3 py-1 bg-white bg-opacity-30 rounded-lg text-sm font-semibold hover:bg-opacity-50 transition-colors"
+                                className="px-3 py-1 bg-gray-800 bg-opacity-50 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
                             >
                                 History
                             </button>
@@ -1462,18 +1457,18 @@
                     </div>
 
                     {/* Balance */}
-                    <div className="bg-white bg-opacity-20 rounded-lg m-4 p-4 text-center">
-                        <div className="text-2xl font-bold">₹{balance.toFixed(2)}</div>
+                    <div className="bg-gray-800 bg-opacity-30 rounded-lg m-4 p-4 text-center">
+                        <div className="text-2xl font-bold text-yellow-300">₹{balance.toFixed(2)}</div>
                         <div className="text-sm opacity-80">Wallet balance</div>
                         <div className="flex gap-2 mt-3">
                             <button
-                                className="flex-1 bg-red-400 py-2 rounded-lg"
+                                className="flex-1 bg-red-600 py-2 rounded-lg font-bold"
                                 onClick={() => navigateTo('withdraw')}
                             >
                                 Withdraw
                             </button>
                             <button
-                                className="flex-1 bg-green-500 py-2 rounded-lg"
+                                className="flex-1 bg-green-600 py-2 rounded-lg font-bold"
                                 onClick={() => navigateTo('deposit')}
                             >
                                 Deposit
@@ -1483,11 +1478,10 @@
 
                     {/* Game Info */}
                     <div className="px-4 mb-4">
-                        <div className="bg-white bg-opacity-10 rounded-lg p-3">
-                            {/* Replaced Note with User Bet Display */}
+                        <div className="bg-gray-800 bg-opacity-30 rounded-lg p-3">
                             {gameState === 'running' && selectedColor !== null && (
                                 <div className="flex items-center gap-2 mb-2">
-                                    <div className="w-4 h-4 bg-green-400 rounded"></div> {/* Placeholder icon */}
+                                    <div className="w-4 h-4 bg-yellow-400 rounded"></div>
                                     <span className="text-sm">
                                         Your Bet: <span className="font-bold">{typeof selectedColor === 'number' ? selectedColor : selectedColor}</span>
                                         {' '}(₹{betAmount.toFixed(2)}
@@ -1499,8 +1493,7 @@
                                 </div>
                             )}
 
-                            {/* Timer and Period */}
-                            <div className="flex justify-between items-center bg-white bg-opacity-20 rounded-lg p-3 mt-2">
+                            <div className="flex justify-between items-center bg-black bg-opacity-20 rounded-lg p-3 mt-2">
                                 <div>
                                     <div className="text-xs opacity-80">Time Remaining</div>
                                     <div className="text-2xl font-bold text-yellow-300">
@@ -1517,7 +1510,7 @@
 
                     {/* Result Display */}
                     {showResult && currentResult && (
-                        <div className="mx-4 mb-4 bg-white bg-opacity-20 rounded-lg p-4 text-center">
+                        <div className="mx-4 mb-4 bg-gray-800 bg-opacity-40 rounded-lg p-4 text-center">
                             <div className="text-lg font-bold mb-2">Result</div>
                             <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center text-2xl font-bold animate-pulse-result ${getResultColor(currentResult.result)}`}>
                                 {currentResult.result}
@@ -1552,7 +1545,7 @@
                                     key={num}
                                     onClick={() => placeBet(num)}
                                     disabled={gameState !== 'betting'}
-                                    className={`w-12 h-12 rounded-full flex items-center justify-center font-bold border-2 border-white ${
+                                    className={`w-12 h-12 rounded-full flex items-center justify-center font-bold border-2 border-gray-600 ${
                                         getResultColor(num)
                                     } ${selectedColor === num ? 'ring-2 ring-yellow-400' : ''} disabled:opacity-50`}
                                 >
@@ -1566,27 +1559,25 @@
                     <div className="px-4 mb-4">
                         <label htmlFor="custom-bet-amount" className="block text-sm font-semibold mb-2">Bet Amount (₹)</label>
                         <div className="flex items-center gap-2 mb-2">
-                            {/* Original bet amount buttons */}
                             <div className="flex gap-1">
                                 {[10, 100, 1000].map((amount) => (
                                     <button
                                         key={amount}
                                         onClick={() => { setBetAmount(amount); setCustomBetAmount(''); }}
                                         className={`px-3 py-1 rounded text-xs ${
-                                            betAmount === amount && customBetAmount === '' ? 'bg-white text-red-500' : 'bg-white bg-opacity-20'
+                                            betAmount === amount && customBetAmount === '' ? 'bg-yellow-400 text-black' : 'bg-gray-700 text-white'
                                         }`}
                                     >
                                         {amount}
                                     </button>
                                 ))}
                             </div>
-                            {/* Custom bet amount input */}
                             <input
                                 id="custom-bet-amount"
                                 type="number"
                                 value={customBetAmount}
                                 onChange={handleCustomBetAmountChange}
-                                className="flex-1 p-2 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-300 min-w-0"
+                                className="flex-1 p-2 rounded-lg text-gray-900 bg-gray-200 focus:outline-none focus:ring-2 focus:ring-yellow-400 min-w-0"
                                 placeholder="Custom"
                                 min="1"
                             />
@@ -1601,7 +1592,7 @@
                                     key={size}
                                     onClick={() => placeBet(size)}
                                     disabled={gameState !== 'betting'}
-                                    className={`flex-1 py-3 rounded-lg font-semibold ${
+                                    className={`flex-1 py-3 rounded-lg font-semibold text-white ${
                                         size === 'Big' ? 'bg-orange-500' : 'bg-blue-500'
                                     } ${selectedColor === size ? 'ring-2 ring-white' : ''} disabled:opacity-50`}
                                 >
@@ -1613,7 +1604,7 @@
 
                     {/* Game History (Only showing last 3) */}
                     <div className="px-4 mb-4">
-                        <div className="bg-white bg-opacity-10 rounded-lg p-3">
+                        <div className="bg-gray-800 bg-opacity-30 rounded-lg p-3">
                             <div className="flex items-center gap-2 mb-3">
                                 <History className="w-4 h-4" />
                                 <span className="text-sm font-semibold">Recent Game History</span>
@@ -1621,15 +1612,14 @@
 
                             <div className="space-y-2">
                                 {gameHistory.slice(0, 3).map((game, index) => (
-                                    <div key={game.period} className="flex items-center justify-between bg-white bg-opacity-10 rounded p-2">
+                                    <div key={game.period} className="flex items-center justify-between bg-black bg-opacity-20 rounded p-2">
                                         <div className="text-xs">{game.period}</div>
                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${getResultColor(game.result)}`}>
                                             {game.result}
                                         </div>
                                         <div className="text-xs">{game.size}</div>
                                         <div className="flex gap-1">
-                                            {/* These dots usually represent some color history, keeping them for consistency */}
-                                            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                            <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
                                             <div className="w-2 h-2 bg-red-400 rounded-full"></div>
                                         </div>
                                     </div>
@@ -1642,7 +1632,7 @@
                     <div className="px-4 pb-4">
                         <button
                             onClick={() => navigateTo('history')}
-                            className="w-full bg-yellow-400 py-3 rounded-lg font-bold text-red-800 hover:bg-yellow-500 transition-colors"
+                            className="w-full bg-yellow-400 py-3 rounded-lg font-bold text-black hover:bg-yellow-500 transition-colors"
                         >
                             View All History
                         </button>
@@ -1651,20 +1641,20 @@
                     {/* Victory/Loss Message */}
                     {victoryMessage && (
                         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-                            <div className={`bg-white rounded-2xl p-8 text-center mx-4 transform animate-pulse ${
-                                victoryMessage.type === 'win' ? 'border-4 border-green-400' : 'border-4 border-red-400'
+                            <div className={`bg-gray-800 rounded-2xl p-8 text-center mx-4 transform animate-pulse ${
+                                victoryMessage.type === 'win' ? 'border-4 border-yellow-400' : 'border-4 border-red-400'
                             }`}>
                                 <div className={`text-2xl font-bold mb-4 ${
-                                    victoryMessage.type === 'win' ? 'text-green-500' : 'text-red-500'
+                                    victoryMessage.type === 'win' ? 'text-yellow-400' : 'text-red-400'
                                 }`}>
                                     {victoryMessage.message}
                                 </div>
                                 <div className={`text-3xl font-bold mb-2 ${
-                                    victoryMessage.type === 'win' ? 'text-green-600' : 'text-red-600'
+                                    victoryMessage.type === 'win' ? 'text-green-400' : 'text-red-500'
                                 }`}>
                                     {victoryMessage.type === 'win' ? '+' : '-'}₹{victoryMessage.amount.toFixed(2)}
                                 </div>
-                                <div className="text-gray-600 text-sm">
+                                <div className="text-gray-400 text-sm">
                                     {victoryMessage.type === 'win' ? 'Added to your balance' : 'Deducted from your balance'}
                                 </div>
                             </div>
@@ -1673,7 +1663,7 @@
 
                     {/* Game Status */}
                     {gameState !== 'betting' && (
-                        <div className="fixed bottom-4 left-4 right-4 bg-black bg-opacity-50 rounded-lg p-3 text-center">
+                        <div className="fixed bottom-4 left-4 right-4 bg-black bg-opacity-80 rounded-lg p-3 text-center text-yellow-300">
                             <div className="text-sm">
                                 {gameState === 'running' ? 'Betting Closed - Game Running...' : 'Calculating Results...'}
                             </div>
@@ -1736,8 +1726,6 @@
 
             // Function to calculate the multiplier based on safe boxes opened
             const calculateNextMultiplier = (openedSafes) => {
-                // Progressive multiplier: 1.00x for 0, 1.15x for 1, 1.30x for 2, etc.
-                // You can adjust the 0.15 increment for different difficulty/payout.
                 return parseFloat((1 + openedSafes * 0.15).toFixed(2));
             };
 
@@ -1844,18 +1832,18 @@
             };
 
             return (
-                <div className="max-w-md mx-auto bg-gradient-to-b from-orange-500 to-red-700 min-h-screen text-white p-4 flex flex-col">
+                <div className="max-w-md mx-auto bg-gradient-to-b from-black to-gray-900 min-h-screen text-white p-4 flex flex-col">
                     {/* Header */}
                     <div className="flex items-center gap-2 mb-6">
-                        <button onClick={() => navigateTo('gameSelection')} className="p-2 rounded-full bg-white bg-opacity-30">
+                        <button onClick={() => navigateTo('gameSelection')} className="p-2 rounded-full bg-gray-800 bg-opacity-50">
                             <ArrowLeft className="w-5 h-5 text-white" />
                         </button>
                         <Logo />
-                        <h2 className="text-xl font-bold">Mine</h2>
+                        <h2 className="text-xl font-bold text-yellow-300">Mine</h2>
                         <div className="ml-auto flex gap-2 items-center">
                             <button
                                 onClick={() => navigateTo('history')}
-                                className="px-3 py-1 bg-white bg-opacity-30 rounded-lg text-sm font-semibold hover:bg-opacity-50 transition-colors"
+                                className="px-3 py-1 bg-gray-800 bg-opacity-50 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
                             >
                                 History
                             </button>
@@ -1863,19 +1851,19 @@
                         </div>
                     </div>
 
-                    {/* Wallet Balance Display - Styled like Aviator */}
-                    <div className="bg-white bg-opacity-20 rounded-lg p-4 text-center mb-4">
-                        <div className="text-2xl font-bold">₹{balance.toFixed(2)}</div>
+                    {/* Wallet Balance Display */}
+                    <div className="bg-gray-800 bg-opacity-30 rounded-lg p-4 text-center mb-4">
+                        <div className="text-2xl font-bold text-yellow-300">₹{balance.toFixed(2)}</div>
                         <div className="text-sm opacity-80">Wallet balance</div>
                         <div className="flex gap-2 mt-3">
                             <button
-                                className="flex-1 bg-red-400 py-2 rounded-lg"
+                                className="flex-1 bg-red-600 py-2 rounded-lg font-bold"
                                 onClick={() => navigateTo('withdraw')}
                             >
                                 Withdraw
                             </button>
                             <button
-                                className="flex-1 bg-green-500 py-2 rounded-lg"
+                                className="flex-1 bg-green-600 py-2 rounded-lg font-bold"
                                 onClick={() => navigateTo('deposit')}
                             >
                                 Deposit
@@ -1884,7 +1872,7 @@
                     </div>
 
                     {/* Game Controls - Bet Amount */}
-                    <div className="bg-white bg-opacity-20 rounded-lg p-6 mb-4">
+                    <div className="bg-gray-800 bg-opacity-30 rounded-lg p-6 mb-4">
                         <div className="mb-4">
                             <label htmlFor="mines-bet-amount" className="block text-sm font-semibold mb-2">Bet Amount (₹)</label>
                             <div className="flex items-center gap-2">
@@ -1894,7 +1882,7 @@
                                             key={amount}
                                             onClick={() => { setBetAmount(amount); setCustomBetAmount(''); }}
                                             className={`px-3 py-1 rounded text-xs ${
-                                                (betAmount === amount && customBetAmount === '') && !isGameActive ? 'bg-yellow-400 text-gray-900' : 'bg-orange-400 text-white'
+                                                (betAmount === amount && customBetAmount === '') && !isGameActive ? 'bg-yellow-400 text-black' : 'bg-gray-700 text-white'
                                             } hover:bg-yellow-500 transition-colors`}
                                             disabled={isGameActive}
                                         >
@@ -1907,7 +1895,7 @@
                                     type="number"
                                     value={customBetAmount}
                                     onChange={(e) => setCustomBetAmount(e.target.value)}
-                                    className="flex-1 p-2 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-300 min-w-0"
+                                    className="flex-1 p-2 rounded-lg text-gray-900 bg-gray-200 focus:outline-none focus:ring-2 focus:ring-yellow-400 min-w-0"
                                     placeholder="Custom"
                                     min="1"
                                     disabled={isGameActive}
@@ -1926,27 +1914,26 @@
                     </div>
 
                     {/* Mines Grid */}
-                    <div className="mines-grid mb-4"> {/* Added mb-4 for spacing below grid */}
+                    <div className="mines-grid mb-4">
                         {grid.map((box) => (
                             <div
                                 key={box.id}
                                 className={`mine-box ${box.status} ${!isGameActive && box.value === 'mine' ? 'mine' : ''} ${!isGameActive && box.status === 'safe_revealed' ? 'safe_revealed' : ''} ${!isGameActive && box.status === 'unopened' ? 'disabled-box' : ''}`}
                                 onClick={() => handleBoxClick(box.id)}
                             >
-                                {/* Conditional rendering for images */}
                                 {box.status === 'mine' && <img src="boom.png" alt="Mine" onError={(e)=>{e.target.onerror = null; e.target.src='https://placehold.co/48x48/1F2937/FFFFFF?text=X'}} />}
-                                {box.status === 'safe' && <img src="coin.png" alt="Coin" onError={(e)=>{e.target.onerror = null; e.target.src='https://placehold.co/48x48/EF4444/FFFFFF?text=O'}} />}
-                                {box.status === 'safe_revealed' && <img src="coin.png" alt="Coin" onError={(e)=>{e.target.onerror = null; e.target.src='https://placehold.co/48x48/F97316/FFFFFF?text=O'}} />}
+                                {box.status === 'safe' && <img src="coin.png" alt="Coin" onError={(e)=>{e.target.onerror = null; e.target.src='https://placehold.co/48x48/eab308/000000?text=O'}} />}
+                                {box.status === 'safe_revealed' && <img src="coin.png" alt="Coin" onError={(e)=>{e.target.onerror = null; e.target.src='https://placehold.co/48x48/ca8a04/FFFFFF?text=O'}} />}
                             </div>
                         ))}
                     </div>
 
-                    {/* Game Status / Multiplier / Winnings & Action Buttons (visible after game starts) */}
-                    <div className="bg-white bg-opacity-20 rounded-lg p-6">
+                    {/* Game Status / Multiplier / Winnings & Action Buttons */}
+                    <div className="bg-gray-800 bg-opacity-30 rounded-lg p-6">
                         {!isGameActive ? (
                             <button
                                 onClick={startGame}
-                                className="w-full bg-green-500 py-3 rounded-lg font-bold text-white hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full bg-green-600 py-3 rounded-lg font-bold text-white hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 disabled={isNaN(parseFloat(customBetAmount !== '' ? customBetAmount : betAmount)) || parseFloat(customBetAmount !== '' ? customBetAmount : betAmount) <= 0 || (customBetAmount !== '' ? parseFloat(customBetAmount) : betAmount) > balance}
                             >
                                 START GAME
@@ -1965,7 +1952,7 @@
                                 </div>
                                 <button
                                     onClick={handleCashOut}
-                                    className="w-full bg-yellow-400 py-3 rounded-lg font-bold text-gray-900 hover:bg-yellow-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="w-full bg-yellow-400 py-3 rounded-lg font-bold text-black hover:bg-yellow-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     disabled={safeOpenedCount === 0}
                                 >
                                     CASH OUT (₹{potentialWinnings.toFixed(2)})
@@ -1987,7 +1974,6 @@
                 if (balance < 1) {
                     setMessageText(`Your balance is ₹${balance.toFixed(2)}. Keep at least ₹1 in your balance to enter in game.`);
                     setShowMessage(true);
-                    // Hide message after 3 seconds
                     setTimeout(() => setShowMessage(false), 3000);
                 } else {
                     navigateTo(gameType);
@@ -1995,18 +1981,18 @@
             };
 
             return (
-                <div className="max-w-md mx-auto bg-gradient-to-b from-orange-400 to-red-600 min-h-screen text-white p-4">
+                <div className="max-w-md mx-auto bg-gradient-to-b from-black to-gray-900 min-h-screen text-white p-4">
                     {/* Header */}
-                    <div className="flex items-center justify-between p-4 bg-red-500 -mx-4 -mt-4 rounded-b-lg">
+                    <div className="flex items-center justify-between p-4 bg-black -mx-4 -mt-4 rounded-b-lg shadow-lg shadow-yellow-400/10">
                         <div className="flex items-center gap-2">
                             <Logo onClick={() => navigateTo('profile')} />
-                            <span className="font-bold">Beast Earn</span>
+                            <span className="font-bold text-yellow-300">Beast Earn</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <GuideButton audioFile="main.mp3" />
                             <button
                                 onClick={handleLogout}
-                                className="px-3 py-1 bg-white bg-opacity-30 rounded-lg text-sm font-semibold hover:bg-opacity-50 transition-colors"
+                                className="px-3 py-1 bg-gray-800 bg-opacity-50 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
                             >
                                 Logout
                             </button>
@@ -2014,18 +2000,18 @@
                     </div>
 
                     {/* Balance Card */}
-                    <div className="bg-white bg-opacity-20 rounded-lg m-4 p-4 text-center">
-                        <div className="text-2xl font-bold">₹{balance.toFixed(2)}</div>
+                    <div className="bg-gray-800 bg-opacity-30 rounded-lg m-4 p-4 text-center border border-yellow-400/30">
+                        <div className="text-2xl font-bold text-yellow-300">₹{balance.toFixed(2)}</div>
                         <div className="text-sm opacity-80">Wallet balance</div>
                         <div className="flex gap-2 mt-3">
                             <button
-                                className="flex-1 bg-red-400 py-2 rounded-lg"
+                                className="flex-1 bg-red-600 py-2 rounded-lg font-bold"
                                 onClick={() => navigateTo('withdraw')}
                             >
                                 Withdraw
                             </button>
                             <button
-                                className="flex-1 bg-green-500 py-2 rounded-lg"
+                                className="flex-1 bg-green-600 py-2 rounded-lg font-bold"
                                 onClick={() => navigateTo('deposit')}
                             >
                                 Deposit
@@ -2033,7 +2019,7 @@
                         </div>
                     </div>
 
-                    <h2 className="text-2xl font-bold text-center mb-6">Select a Game</h2>
+                    <h2 className="text-2xl font-bold text-center mb-6 text-yellow-300">Select a Game</h2>
 
                     {/* Message Component */}
                     {showMessage && (
@@ -2042,53 +2028,46 @@
                         </div>
                     )}
 
-                    <div className="grid grid-cols-1 gap-4 px-4 mb-20"> {/* Added mb-20 for bottom margin */}
+                    <div className="grid grid-cols-1 gap-4 px-4 mb-20">
                         <div
-                            className="bg-white bg-opacity-10 rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-opacity-20 transition-all"
+                            className="bg-gray-800 bg-opacity-30 rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-700 transition-all border border-yellow-400/30"
                             onClick={() => handleGameClick('colorPrediction')}
                         >
-                            {/* Custom image for Color Prediction, made circular */}
-                            <img src="color.png" alt="Color Prediction Game Icon" className="w-24 h-24 rounded-full object-cover mb-4" onError={(e)=>{e.target.onerror = null; e.target.src='https://placehold.co/96x96/FFD700/000000?text=Color'}} />
-                            <h3 className="text-xl font-bold mb-2">Color Prediction</h3>
+                            <img src="color.png" alt="Color Prediction Game Icon" className="w-24 h-24 rounded-full object-cover mb-4 border-2 border-yellow-400" onError={(e)=>{e.target.onerror = null; e.target.src='https://placehold.co/96x96/FFD700/000000?text=Color'}} />
+                            <h3 className="text-xl font-bold mb-2 text-yellow-400">Color Prediction</h3>
                             <p className="text-sm opacity-80">Predict the next color and win!</p>
                         </div>
 
-                        {/* New Mines Game Option with custom image */}
                         <div
-                            className="bg-white bg-opacity-10 rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-opacity-20 transition-all"
+                            className="bg-gray-800 bg-opacity-30 rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-700 transition-all border border-yellow-400/30"
                             onClick={() => handleGameClick('mines')}
                         >
-                            {/* Custom image for Mines Game, made circular */}
-                            <img src="mine.png" alt="Mine Game Icon" className="w-24 h-24 rounded-full object-cover mb-4" onError={(e)=>{e.target.onerror = null; e.target.src='https://placehold.co/96x96/FFD700/000000?text=Mine'}} />
-                            <h3 className="text-xl font-bold mb-2">Mine</h3>
+                            <img src="mine.png" alt="Mine Game Icon" className="w-24 h-24 rounded-full object-cover mb-4 border-2 border-yellow-400" onError={(e)=>{e.target.onerror = null; e.target.src='https://placehold.co/96x96/FFD700/000000?text=Mine'}} />
+                            <h3 className="text-xl font-bold mb-2 text-yellow-400">Mine</h3>
                             <p className="text-sm opacity-80">Uncover treasures, avoid mines!</p>
                         </div>
                     </div>
 
                     {/* App Download and Share App Buttons */}
-                    <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-red-600 to-transparent z-50">
+                    <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black to-transparent z-50">
                         <div className="max-w-md mx-auto flex gap-4">
-                            {/* App Download Button - Only visible on mobile */}
+                            {/* App Download Button */}
                             <div className="flex-1 md:hidden">
                                 <button
                                     onClick={() => {
                                         if (window.matchMedia('(display-mode: standalone)').matches) {
-                                            // App is already installed
                                             const message = document.createElement('div');
-                                            message.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-yellow-400 text-gray-900 px-6 py-3 rounded-lg shadow-lg z-50 text-center';
+                                            message.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-yellow-400 text-black px-6 py-3 rounded-lg shadow-lg z-50 text-center';
                                             message.textContent = 'App is already installed!';
                                             document.body.appendChild(message);
                                             setTimeout(() => document.body.removeChild(message), 3000);
                                         } else if ('standalone' in navigator && !navigator.standalone) {
-                                            // iOS device
                                             alert('To install the app on your device:\n1. Tap the Share button\n2. Scroll down and tap "Add to Home Screen"');
                                         } else {
-                                            // Android Chrome
                                             if (window.deferredPrompt) {
                                                 window.deferredPrompt.prompt();
                                                 window.deferredPrompt.userChoice.then((choiceResult) => {
                                                     if (choiceResult.outcome === 'accepted') {
-                                                        // Show success message
                                                         const successMessage = document.createElement('div');
                                                         successMessage.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 text-center';
                                                         successMessage.textContent = 'App installed in your device!';
@@ -2098,17 +2077,16 @@
                                                     window.deferredPrompt = null;
                                                 });
                                             } else {
-                                                // If prompt is not available, show instructions
                                                 alert('To install the app:\n1. Open this website in Chrome\n2. Tap the menu (three dots)\n3. Select "Install app" or "Add to Home screen"');
                                             }
                                         }
                                     }}
-                                    className="w-full bg-yellow-400 text-gray-900 py-3 rounded-lg font-bold hover:bg-yellow-500 transition-colors"
+                                    className="w-full bg-yellow-400 text-black py-3 rounded-lg font-bold hover:bg-yellow-500 transition-colors"
                                 >
                                     App Download
                                 </button>
                             </div>
-                            {/* Share App Button - Always visible */}
+                            {/* Share App Button */}
                             <button
                                 onClick={() => {
                                     if (navigator.share) {
@@ -2118,7 +2096,6 @@
                                             url: 'https://beastmanxxx.github.io/Beast-Earn-App/'
                                         }).catch(console.error);
                                     } else {
-                                        // Fallback for browsers that don't support Web Share API
                                         const dummy = document.createElement('input');
                                         document.body.appendChild(dummy);
                                         dummy.value = 'https://beastmanxxx.github.io/Beast-Earn-App/';
@@ -2221,20 +2198,20 @@
             };
 
             return (
-                <div className="max-w-md mx-auto bg-gradient-to-b from-orange-400 to-red-600 min-h-screen text-white p-4">
+                <div className="max-w-md mx-auto bg-gradient-to-b from-black to-gray-900 min-h-screen text-white p-4">
                     <div className="flex items-center gap-2 mb-6">
-                        <button onClick={() => navigateTo('gameSelection')} className="p-2 rounded-full bg-white bg-opacity-30">
+                        <button onClick={() => navigateTo('gameSelection')} className="p-2 rounded-full bg-gray-800 bg-opacity-50">
                             <ArrowLeft className="w-5 h-5 text-white" />
                         </button>
                         <Logo onClick={() => navigateTo('profile')} />
-                        <h2 className="text-xl font-bold">Profile</h2>
+                        <h2 className="text-xl font-bold text-yellow-300">Profile</h2>
                     </div>
 
-                    <div className="bg-white bg-opacity-20 rounded-lg p-6 mb-4">
+                    <div className="bg-gray-800 bg-opacity-30 rounded-lg p-6 mb-4">
                         <div className="flex flex-col items-center mb-6">
                             <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-yellow-400 mb-4">
                                 <img 
-                                    src={currentUser?.photoURL || "https://ui-avatars.com/api/?name=" + encodeURIComponent(userName || currentUser?.email)} 
+                                    src={currentUser?.photoURL || "https://ui-avatars.com/api/?name=" + encodeURIComponent(userName || currentUser?.email) + "&background=eab308&color=000"} 
                                     alt="Profile" 
                                     className="w-full h-full object-cover"
                                 />
@@ -2254,18 +2231,18 @@
                                             type="text"
                                             value={userName}
                                             onChange={(e) => setUserName(e.target.value)}
-                                            className="flex-1 p-3 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-300"
+                                            className="flex-1 p-3 rounded-lg bg-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                                             placeholder="Enter your name"
                                         />
                                         <button
                                             onClick={handleSaveName}
-                                            className="px-4 py-2 bg-yellow-400 text-red-800 rounded-lg font-bold hover:bg-yellow-500 transition-colors"
+                                            className="px-4 py-2 bg-yellow-400 text-black rounded-lg font-bold hover:bg-yellow-500 transition-colors"
                                         >
                                             Save
                                         </button>
                                     </div>
                                 ) : (
-                                    <div className="flex items-center justify-between bg-white bg-opacity-10 rounded-lg p-3">
+                                    <div className="flex items-center justify-between bg-black bg-opacity-20 rounded-lg p-3">
                                         <div className="font-semibold">{userName || 'Not set'}</div>
                                         <button
                                             onClick={() => setIsEditing(true)}
@@ -2278,19 +2255,19 @@
                             </div>
 
                             {/* Gift Code Section */}
-                            <div className="mt-6 pt-6 border-t border-white border-opacity-20">
+                            <div className="mt-6 pt-6 border-t border-gray-700">
                                 <label className="block text-sm font-semibold mb-2">Redeem Gift Code</label>
                                 <div className="flex gap-2">
                                     <input
                                         type="text"
                                         value={giftCode}
                                         onChange={(e) => setGiftCode(e.target.value)}
-                                        className="flex-1 p-3 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-300"
+                                        className="flex-1 p-3 rounded-lg bg-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                                         placeholder="Enter gift code"
                                     />
                                     <button
                                         onClick={handleRedeemGiftCode}
-                                        className="px-4 py-2 bg-yellow-400 text-red-800 rounded-lg font-bold hover:bg-yellow-500 transition-colors"
+                                        className="px-4 py-2 bg-yellow-400 text-black rounded-lg font-bold hover:bg-yellow-500 transition-colors"
                                     >
                                         Redeem
                                     </button>
@@ -2302,7 +2279,7 @@
                         </div>
 
                         {/* Telegram Join Button Section */}
-                        <div className="mt-6 pt-6 border-t border-white border-opacity-20">
+                        <div className="mt-6 pt-6 border-t border-gray-700">
                             <label className="block text-sm font-semibold mb-2">Join Our Telegram</label>
                             <a 
                                 href="https://t.me/beastearncolorpredictiongame" 
