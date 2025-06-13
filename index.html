@@ -2313,6 +2313,16 @@
             const [authenticated, setAuthenticated] = React.useState(false);
             const [currentPage, setCurrentPage] = React.useState('login');
             const [showInstallMessage, setShowInstallMessage] = React.useState(false);
+            const [navigationHistory, setNavigationHistory] = React.useState(() => {
+                // Initialize from localStorage if available, otherwise start with login
+                const savedHistory = localStorage.getItem('navigationHistory');
+                return savedHistory ? JSON.parse(savedHistory) : ['login'];
+            });
+
+            // Save navigation history to localStorage whenever it changes
+            React.useEffect(() => {
+                localStorage.setItem('navigationHistory', JSON.stringify(navigationHistory));
+            }, [navigationHistory]);
 
             // Handle PWA installation
             React.useEffect(() => {
@@ -2334,7 +2344,47 @@
             const navigateTo = async (page) => {
                 await showLoader();
                 setCurrentPage(page);
+                setNavigationHistory(prev => {
+                    const newHistory = [...prev, page];
+                    // Limit history to last 10 pages to prevent excessive storage
+                    if (newHistory.length > 10) {
+                        return newHistory.slice(-10);
+                    }
+                    return newHistory;
+                });
             };
+
+            const navigateBack = async () => {
+                if (navigationHistory.length > 1) {
+                    await showLoader();
+                    const newHistory = [...navigationHistory];
+                    newHistory.pop(); // Remove current page
+                    const previousPage = newHistory[newHistory.length - 1];
+                    setCurrentPage(previousPage);
+                    setNavigationHistory(newHistory);
+                }
+            };
+
+            // Clear navigation history on logout
+            const handleLogout = async () => {
+                try {
+                    await showLoader();
+                    await auth.signOut();
+                    setCurrentUser(null);
+                    setAuthenticated(false);
+                    localStorage.removeItem('navigationHistory');
+                    setNavigationHistory(['login']);
+                } catch (error) {
+                    console.error("Error signing out:", error);
+                }
+            };
+
+            // Add back button to all pages that need it
+            const BackButton = () => (
+                <button onClick={navigateBack} className="p-2 rounded-full bg-gray-800 bg-opacity-50">
+                    <ArrowLeft className="w-5 h-5 text-white" />
+                </button>
+            );
 
             const [historyInitialTab, setHistoryInitialTab] = React.useState('game');
             const [currentUser, setCurrentUser] = React.useState(null);
@@ -2448,17 +2498,6 @@
 
             const handleWithdrawError = () => {
                 playErrorSound(); // Play error sound on withdrawal mistakes
-            };
-
-            const handleLogout = async () => {
-                try {
-                    await showLoader();
-                    await auth.signOut();
-                    setCurrentUser(null);
-                    setAuthenticated(false);
-                } catch (error) {
-                    console.error("Error signing out:", error);
-                }
             };
 
             if (!authenticated) {
