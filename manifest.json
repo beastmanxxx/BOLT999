@@ -1,9 +1,9 @@
 {
-    "name": "Beast Earn",
-    "short_name": "Beast Earn",
+    "name": "BOLT999",
+    "short_name": "BOLT999",
     "description": "Play Color Prediction and Mine games to win real money!",
-    "start_url": "https://beastmanxxx.github.io/Beast-Earn-App/",
-    "scope": "https://beastmanxxx.github.io/Beast-Earn-App/",
+    "start_url": "https://beastmanxxx.github.io/BOLT999/",
+    "scope": "https://beastmanxxx.github.io/BOLT999/",
     "display": "standalone",
     "background_color": "#ef4444",
     "theme_color": "#ef4444",
@@ -18,5 +18,5 @@
     ],
     "prefer_related_applications": false,
     "related_applications": [],
-    "urls": ["https://beastmanxxx.github.io/Beast-Earn-App/"]
+    "urls": ["https://beastmanxxx.github.io/BOLT999/"]
 } 
