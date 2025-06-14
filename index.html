@@ -2358,9 +2358,10 @@
 
             // Handle Android back button
             React.useEffect(() => {
-                const handleBackButton = (event) => {
+                const handleBackButton = async (event) => {
                     if (navigationHistory.length > 1) {
                         event.preventDefault();
+                        await showLoader(); // Show loader before navigation
                         const newHistory = [...navigationHistory];
                         newHistory.pop(); // Remove current page
                         const previousPage = newHistory[newHistory.length - 1];
