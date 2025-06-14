@@ -1276,7 +1276,7 @@
             const [showResult, setShowResult] = React.useState(false);
             const [victoryMessage, setVictoryMessage] = React.useState(null);
 
-            const colors = ['Gold', 'Violet', 'Red'];
+            const colors = ['Green', 'Violet', 'Red']; // Changed Gold to Green
             const numbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
             const betSizes = ['Big', 'Small'];
 
@@ -1356,7 +1356,7 @@
                 let multiplier = 0;
                 let outcome = { type: 'loss', amount: betAmount }; // Default to loss
 
-                if (selectedColor === 'Gold' && (result.color === 'gold' || result.color === 'gold-violet')) {
+                if (selectedColor === 'Green' && (result.color === 'gold' || result.color === 'gold-violet')) {
                     won = true;
                     multiplier = 1.96;
                 } else if (selectedColor === 'Red' && (result.color === 'red' || result.color === 'red-violet')) {
@@ -1377,25 +1377,19 @@
                 }
 
                 if (won) {
-                    const winAmount = (betAmount * multiplier);
-                    setBalance(prev => prev + winAmount);
-                    outcome = { type: 'win', amount: winAmount };
-                    setVictoryMessage({
-                        type: 'win',
-                        amount: winAmount,
-                        message: '🎉 Congratulations! You Won! 🎉'
-                    });
+                    const winnings = betAmount * multiplier;
+                    setBalance(prev => prev + winnings);
+                    outcome = { type: 'win', amount: winnings };
+                    // Play win sound
+                    const audio = new Audio('coin.mp3');
+                    audio.play().catch(error => console.log('Error playing audio:', error));
+                    setVictoryMessage(`You won ₹${winnings.toFixed(2)}!`);
                 } else {
-                    setVictoryMessage({
-                        type: 'loss',
-                        amount: betAmount,
-                        message: '😔 Better Luck Next Time! 😔'
-                    });
+                    // Play loss sound
+                    const audio = new Audio('boom.mp3');
+                    audio.play().catch(error => console.log('Error playing audio:', error));
+                    setVictoryMessage('Better luck next time!');
                 }
-
-                setTimeout(() => {
-                    setVictoryMessage(null);
-                }, 2500);
 
                 return outcome;
             };
@@ -1444,7 +1438,7 @@
 
             const getColorButtonStyle = (color) => {
                 const baseStyle = "flex-1 py-3 rounded-lg font-semibold text-black transition-all duration-200 ";
-                if (color === 'Gold') return baseStyle + "bg-yellow-400 hover:bg-yellow-500";
+                if (color === 'Green') return baseStyle + "bg-green-500 hover:bg-green-600 text-white";
                 if (color === 'Violet') return baseStyle + "bg-purple-500 hover:bg-purple-600 text-white";
                 if (color === 'Red') return baseStyle + "bg-red-500 hover:bg-red-600 text-white";
                 return baseStyle;
@@ -2181,6 +2175,9 @@
             const handleRedeemGiftCode = async () => {
                 if (!giftCode.trim()) {
                     setMessage({ type: 'error', text: 'Please enter a gift code' });
+                    // Play error sound
+                    const audio = new Audio('error.mp3');
+                    audio.play().catch(error => console.log('Error playing audio:', error));
                     return;
                 }
 
@@ -2196,6 +2193,9 @@
                             type: 'error', 
                             text: `You can redeem a gift code again in ${remainingHours} hours` 
                         });
+                        // Play error sound
+                        const audio = new Audio('error.mp3');
+                        audio.play().catch(error => console.log('Error playing audio:', error));
                         return;
                     }
                 }
@@ -2214,12 +2214,21 @@
                             type: 'success', 
                             text: 'Gift code redeemed successfully! ₹10 added to your balance.' 
                         });
+                        // Play success sound
+                        const audio = new Audio('dw.mp3');
+                        audio.play().catch(error => console.log('Error playing audio:', error));
                         setGiftCode('');
                     } catch (error) {
                         setMessage({ type: 'error', text: 'Failed to redeem gift code' });
+                        // Play error sound
+                        const audio = new Audio('error.mp3');
+                        audio.play().catch(error => console.log('Error playing audio:', error));
                     }
                 } else {
                     setMessage({ type: 'error', text: 'Invalid gift code' });
+                    // Play error sound
+                    const audio = new Audio('error.mp3');
+                    audio.play().catch(error => console.log('Error playing audio:', error));
                 }
             };
 
