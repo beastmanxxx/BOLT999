@@ -1997,7 +1997,7 @@
             const [messageText, setMessageText] = React.useState('');
 
             const handleGameClick = (gameType) => {
-                if (balance < 1) {
+                if (balance < 0) {
                     setMessageText(`Your balance is ₹${balance.toFixed(2)}. Keep at least ₹1 in your balance to enter in game.`);
                     setShowMessage(true);
                     setTimeout(() => setShowMessage(false), 3000);
