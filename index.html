@@ -1265,17 +1265,18 @@
 
 
         const ColorPredictionGame = ({ balance, setBalance, navigateTo, gameHistory, setGameHistory, addDepositToHistory, addWithdrawToHistory, currentUser, updateUserData }) => {
-            const [currentPeriod, setCurrentPeriod] = React.useState(1);
+            const [currentPeriod, setCurrentPeriod] = React.useState(1); // Default to 1
             const [timeLeft, setTimeLeft] = React.useState(0);
             const [gameState, setGameState] = React.useState('betting');
             const [selectedColor, setSelectedColor] = React.useState(null);
             const [betAmount, setBetAmount] = React.useState(10);
             const [customBetAmount, setCustomBetAmount] = React.useState('');
+
             const [currentResult, setCurrentResult] = React.useState(null);
             const [showResult, setShowResult] = React.useState(false);
             const [victoryMessage, setVictoryMessage] = React.useState(null);
 
-            const colors = ['Green', 'Violet', 'Red'];
+            const colors = ['Green', 'Violet', 'Red']; // Changed Gold to Green
             const numbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
             const betSizes = ['Big', 'Small'];
 
@@ -1323,7 +1324,7 @@
                     result: resultNumber,
                     color: resultColor,
                     size: resultSize,
-                    betOutcome: null
+                    betOutcome: null // To store outcome for history
                 };
 
                 setCurrentResult(newResult);
@@ -1331,23 +1332,19 @@
 
                 if (selectedColor) {
                     const outcome = calculateWinnings(newResult);
-                    newResult.betOutcome = outcome;
-                    
-                    // Play appropriate sound based on outcome
-                    const audio = new Audio(outcome.type === 'win' ? 'coin.mp3' : 'boom.mp3');
-                    audio.play().catch(error => console.log('Error playing audio:', error));
+                    newResult.betOutcome = outcome; // Store outcome with result
                 }
 
                 setTimeout(() => {
-                    setGameHistory(prev => [newResult, ...prev]);
+                    setGameHistory(prev => [newResult, ...prev]); // Add new result to history
                     setShowResult(false);
                     setCurrentResult(null);
                     setSelectedColor(null);
                     setGameState('betting');
-                    setCurrentPeriod(prev => prev + 1);
-                    setCustomBetAmount('');
-                    setVictoryMessage(null);
+                    setCurrentPeriod(prev => prev + 1); // Increment period by 1
+                    setCustomBetAmount(''); // Clear custom bet input
 
+                    // Update the user's lastPeriod in Firestore
                     if (currentUser) {
                         updateUserData({ lastPeriod: currentPeriod });
                     }
@@ -1357,7 +1354,7 @@
             const calculateWinnings = (result) => {
                 let won = false;
                 let multiplier = 0;
-                let outcome = { type: 'loss', amount: betAmount };
+                let outcome = { type: 'loss', amount: betAmount }; // Default to loss
 
                 if (selectedColor === 'Green' && (result.color === 'gold' || result.color === 'gold-violet')) {
                     won = true;
@@ -1383,23 +1380,15 @@
                     const winnings = betAmount * multiplier;
                     setBalance(prev => prev + winnings);
                     outcome = { type: 'win', amount: winnings };
-                    setVictoryMessage({
-                        type: 'win',
-                        message: `You won ₹${winnings.toFixed(2)}!`,
-                        bet: selectedColor,
-                        result: result.result,
-                        color: result.color,
-                        size: result.size
-                    });
+                    // Play win sound
+                    const audio = new Audio('coin.mp3');
+                    audio.play().catch(error => console.log('Error playing audio:', error));
+                    setVictoryMessage(`You won ₹${winnings.toFixed(2)}!`);
                 } else {
-                    setVictoryMessage({
-                        type: 'loss',
-                        message: 'Better luck next time!',
-                        bet: selectedColor,
-                        result: result.result,
-                        color: result.color,
-                        size: result.size
-                    });
+                    // Play loss sound
+                    const audio = new Audio('boom.mp3');
+                    audio.play().catch(error => console.log('Error playing audio:', error));
+                    setVictoryMessage('Better luck next time!');
                 }
 
                 return outcome;
@@ -1547,16 +1536,6 @@
                                 {currentResult.result}
                             </div>
                             <div className="mt-2 text-sm">{currentResult.size}</div>
-                            {victoryMessage && (
-                                <div className={`mt-3 p-2 rounded-lg ${
-                                    victoryMessage.type === 'win' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'
-                                }`}>
-                                    <div className="font-bold">{victoryMessage.message}</div>
-                                    <div className="text-xs mt-1">
-                                        Bet: {victoryMessage.bet} | Result: {victoryMessage.result} ({victoryMessage.color}, {victoryMessage.size})
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     )}
 
