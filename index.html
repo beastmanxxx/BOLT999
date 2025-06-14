@@ -2339,6 +2339,7 @@
             const [authenticated, setAuthenticated] = React.useState(false);
             const [currentPage, setCurrentPage] = React.useState('login');
             const [showInstallMessage, setShowInstallMessage] = React.useState(false);
+            const [navigationHistory, setNavigationHistory] = React.useState(['login']);
 
             // Handle PWA installation
             React.useEffect(() => {
@@ -2355,9 +2356,29 @@
                 });
             }, []);
 
+            // Handle Android back button
+            React.useEffect(() => {
+                const handleBackButton = (event) => {
+                    if (navigationHistory.length > 1) {
+                        event.preventDefault();
+                        const newHistory = [...navigationHistory];
+                        newHistory.pop(); // Remove current page
+                        const previousPage = newHistory[newHistory.length - 1];
+                        setNavigationHistory(newHistory);
+                        setCurrentPage(previousPage);
+                    }
+                };
+
+                window.addEventListener('popstate', handleBackButton);
+                return () => window.removeEventListener('popstate', handleBackButton);
+            }, [navigationHistory]);
+
             const navigateTo = async (page) => {
                 await showLoader();
                 setCurrentPage(page);
+                setNavigationHistory(prev => [...prev, page]);
+                // Add to browser history
+                window.history.pushState({ page }, '', `#${page}`);
             };
 
             const [historyInitialTab, setHistoryInitialTab] = React.useState('game');
