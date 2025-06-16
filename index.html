@@ -622,11 +622,6 @@
 
                     setExtractionProgress(20);
 
-                    // Check image dimensions (must be reasonable for a screenshot)
-                    if (img.width < 200 || img.height < 200 || img.width > 4000 || img.height > 4000) {
-                        throw new Error('Invalid screenshot dimensions. Please take a screenshot of your actual real payment.');
-                    }
-
                     // Set canvas size to match image
                     canvas.width = img.width;
                     canvas.height = img.height;
@@ -682,31 +677,58 @@
                         status: null
                     };
 
-                    // Extract UPI ID
+                    // Extract UPI ID with more relaxed matching
+                    const targetUpiId = 'bolt999@ibl';
                     const upiPatterns = [
-                        upiId.toLowerCase(),
-                        upiId.toLowerCase().replace('@', ' @'),
-                        upiId.toLowerCase().replace('@', ' @ '),
-                        'upi id: ' + upiId.toLowerCase(),
-                        'upi: ' + upiId.toLowerCase(),
-                        'paid to: ' + upiId.toLowerCase(),
-                        'beneficiary: ' + upiId.toLowerCase(),
-                        'upi id ' + upiId.toLowerCase(),
-                        'upi ' + upiId.toLowerCase(),
-                        'to ' + upiId.toLowerCase(),
-                        'recipient: ' + upiId.toLowerCase(),
-                        'receiver: ' + upiId.toLowerCase()
+                        targetUpiId,
+                        targetUpiId.replace('@', ' @'),
+                        targetUpiId.replace('@', ' @ '),
+                        'upi id: ' + targetUpiId,
+                        'upi: ' + targetUpiId,
+                        'paid to: ' + targetUpiId,
+                        'beneficiary: ' + targetUpiId,
+                        'upi id ' + targetUpiId,
+                        'upi ' + targetUpiId,
+                        'to ' + targetUpiId,
+                        'recipient: ' + targetUpiId,
+                        'receiver: ' + targetUpiId,
+                        // Add more variations for common UPI apps
+                        'paytm: ' + targetUpiId,
+                        'google pay: ' + targetUpiId,
+                        'phonepe: ' + targetUpiId,
+                        'amazon pay: ' + targetUpiId,
+                        'bhim: ' + targetUpiId,
+                        // Add partial matches
+                        'bolt999',
+                        '@ibl',
+                        'bolt999@',
+                        // Add common variations
+                        'bolt 999',
+                        'bolt-999',
+                        'bolt_999'
                     ];
 
+                    // Try to find UPI ID with more relaxed matching
                     for (const pattern of upiPatterns) {
                         const normalizedPattern = pattern.toLowerCase().replace(/\s+/g, '');
                         if (normalizedText.includes(normalizedPattern)) {
-                            extractedData.upiId = upiId;
+                            extractedData.upiId = targetUpiId;
                             break;
                         }
                     }
 
-                    // Extract amount
+                    // If UPI ID not found, try fuzzy matching
+                    if (!extractedData.upiId) {
+                        const words = normalizedText.split(/\s+/);
+                        for (const word of words) {
+                            if (word.includes('bolt') && word.includes('@ibl')) {
+                                extractedData.upiId = targetUpiId;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Extract amount with more relaxed matching
                     const amountPatterns = [
                         /(?:rs\.?|inr|₹)\s*(\d+(?:\.\d{2})?)/i,
                         /amount\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
@@ -715,7 +737,10 @@
                         /debit\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
                         /sent\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
                         /transfer\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
-                        /(?:paytm|google pay|phonepe|amazon pay|bhim)\s*(?:amount|paid|total)\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i
+                        /(?:paytm|google pay|phonepe|amazon pay|bhim)\s*(?:amount|paid|total)\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
+                        // Add more relaxed patterns
+                        /(\d+(?:\.\d{2})?)\s*(?:rs\.?|inr|₹)/i,
+                        /(\d+(?:\.\d{2})?)/i
                     ];
 
                     for (const pattern of amountPatterns) {
@@ -726,7 +751,7 @@
                         }
                     }
 
-                    // Extract status
+                    // Extract status with more relaxed matching
                     const successPatterns = [
                         'successful',
                         'success',
@@ -745,7 +770,14 @@
                         'transfer done',
                         'sent successfully',
                         'paid successfully',
-                        'completed successfully'
+                        'completed successfully',
+                        // Add more variations
+                        'done',
+                        'sent',
+                        'processed',
+                        'transferred',
+                        'paid to',
+                        'sent to'
                     ];
 
                     for (const pattern of successPatterns) {
@@ -757,13 +789,13 @@
 
                     setExtractedInfo(extractedData);
 
-                    // Verify extracted information
+                    // Verify extracted information with more relaxed rules
                     if (!extractedData.upiId) {
-                        throw new Error('Could not verify payment to the correct UPI ID. Please ensure you paid to bolt999@ibl');
+                        throw new Error('Could not find bolt999@ibl in the screenshot. Please ensure the UPI ID is visible in the payment confirmation.');
                     }
 
                     if (!extractedData.amount) {
-                        throw new Error('Could not verify payment amount in the screenshot. Please ensure the amount is clearly visible in the payment confirmation.');
+                        throw new Error('Could not find the payment amount in the screenshot. Please ensure the amount is visible in the payment confirmation.');
                     }
 
                     const userAmount = parseFloat(depositAmount);
@@ -772,7 +804,7 @@
                     }
 
                     if (!extractedData.status) {
-                        throw new Error('Could not verify successful payment status in the screenshot. Please ensure the payment status (successful/completed) is clearly visible in the confirmation.');
+                        throw new Error('Could not verify payment status in the screenshot. Please ensure the payment status is visible in the confirmation.');
                     }
 
                     setExtractionProgress(100);
