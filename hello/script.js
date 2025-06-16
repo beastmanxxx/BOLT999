@@ -6,6 +6,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const extractedText = document.getElementById('extractedText');
     const loadingIndicator = document.getElementById('loadingIndicator');
 
+    // Check if we have an image from the parent window
+    if (window.opener && window.opener.paymentScreenshot) {
+        const file = window.opener.paymentScreenshot;
+        handleFiles([file]);
+    }
+
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, preventDefaults, false);
