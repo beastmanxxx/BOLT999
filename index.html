@@ -581,20 +581,70 @@
 
             // Function to enhance image for better OCR
             const enhanceImageForOCR = (imageData) => {
-                const data = imageData.data;
+                const { width, height, data } = imageData;
+                const enhancedData = new Uint8ClampedArray(data.length);
+
+                // Convert to grayscale and increase contrast
                 for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    
                     // Convert to grayscale
-                    const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                    const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
                     
                     // Increase contrast
-                    const threshold = 128;
-                    const newValue = avg > threshold ? 255 : 0;
+                    const contrast = 1.5; // Contrast factor
+                    const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+                    const enhancedGray = factor * (gray - 128) + 128;
                     
-                    data[i] = newValue;     // R
-                    data[i + 1] = newValue; // G
-                    data[i + 2] = newValue; // B
+                    // Apply threshold for better text visibility
+                    const threshold = 128;
+                    const finalGray = enhancedGray > threshold ? 255 : 0;
+                    
+                    enhancedData[i] = finalGray;
+                    enhancedData[i + 1] = finalGray;
+                    enhancedData[i + 2] = finalGray;
+                    enhancedData[i + 3] = data[i + 3];
                 }
-                return imageData;
+
+                return new ImageData(enhancedData, width, height);
+            };
+
+            // Function to preprocess image for better OCR
+            const preprocessImage = async (file) => {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+
+                    img.onload = () => {
+                        // Set canvas size to match image
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+
+                        // Draw original image
+                        ctx.drawImage(img, 0, 0);
+
+                        // Get image data
+                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+                        // Apply image enhancement
+                        const enhancedData = enhanceImageForOCR(imageData);
+                        ctx.putImageData(enhancedData, 0, 0);
+
+                        // Apply additional processing
+                        ctx.filter = 'contrast(1.5) brightness(1.2)';
+                        ctx.drawImage(canvas, 0, 0);
+
+                        // Convert to base64
+                        const processedImage = canvas.toDataURL('image/png');
+                        resolve(processedImage);
+                    };
+
+                    img.onerror = reject;
+                    img.src = URL.createObjectURL(file);
+                });
             };
 
             // Function to extract payment information from text
@@ -700,48 +750,21 @@
                         throw new Error('Screenshot is Invalid.');
                     }
 
-                    // Create a canvas to process the image
-                    const img = new Image();
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-
-                    // Load image and process it
-                    await new Promise((resolve, reject) => {
-                        img.onload = resolve;
-                        img.onerror = reject;
-                        img.src = URL.createObjectURL(file);
-                    });
-
                     setExtractionProgress(20);
 
-                    // Set canvas size to match image
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-
-                    // Draw image on canvas
-                    ctx.drawImage(img, 0, 0);
-
+                    // Preprocess image
+                    const processedImage = await preprocessImage(file);
                     setExtractionProgress(40);
 
-                    // Get image data for OCR processing
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    
-                    // Enhance image for better OCR
-                    const enhancedData = enhanceImageForOCR(imageData);
-                    ctx.putImageData(enhancedData, 0, 0);
-
-                    setExtractionProgress(60);
-
-                    // Use Tesseract.js for OCR with improved configuration
+                    // Initialize Tesseract worker with improved configuration
                     const worker = await Tesseract.createWorker();
                     await worker.loadLanguage('eng');
                     await worker.initialize('eng');
-                    
-                    setExtractionProgress(80);
 
-                    const { data: { text } } = await worker.recognize(canvas, {
+                    // Configure Tesseract for better text recognition
+                    await worker.setParameters({
                         tessedit_char_whitelist: '0123456789@.₹RsINRUPIabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
-                        tessedit_pageseg_mode: '6',
+                        tessedit_pageseg_mode: '6', // Assume uniform text
                         tessjs_create_pdf: '0',
                         tessjs_create_hocr: '0',
                         tessjs_create_tsv: '0',
@@ -750,22 +773,58 @@
                         tessjs_create_osd: '0'
                     });
 
-                    await worker.terminate();
+                    setExtractionProgress(60);
 
-                    setExtractionProgress(90);
-
-                    // Extract payment information
-                    const paymentInfo = extractPaymentInfo(text);
-                    setExtractedInfo(paymentInfo);
-
-                    // Verify UPI ID
-                    if (!paymentInfo.receiverUpiId || !paymentInfo.receiverUpiId.toLowerCase().includes(upiId.toLowerCase())) {
-                        throw new Error('Could not find bolt999@ibl in the screenshot. Please ensure the UPI ID is visible in the payment confirmation.');
+                    // Perform OCR with multiple attempts
+                    let extractedText = '';
+                    const attempts = 3;
+                    
+                    for (let i = 0; i < attempts; i++) {
+                        const { data: { text } } = await worker.recognize(processedImage);
+                        extractedText += text + ' ';
+                        setExtractionProgress(60 + (i + 1) * 10);
                     }
 
-                    // Verify amount
+                    await worker.terminate();
+                    setExtractionProgress(90);
+
+                    // Clean and normalize extracted text
+                    const cleanedText = extractedText
+                        .replace(/\s+/g, ' ')
+                        .replace(/[^\w\s@₹.,:-]/g, '')
+                        .trim();
+
+                    // Extract payment information
+                    const paymentInfo = extractPaymentInfo(cleanedText);
+                    paymentInfo.rawText = cleanedText;
+                    setExtractedInfo(paymentInfo);
+
+                    // Verify UPI ID with fuzzy matching
+                    const targetUpiId = upiId.toLowerCase();
+                    const foundUpiId = paymentInfo.receiverUpiId?.toLowerCase();
+                    
+                    if (!foundUpiId || !foundUpiId.includes(targetUpiId)) {
+                        // Try fuzzy matching
+                        const words = cleanedText.toLowerCase().split(/\s+/);
+                        const hasUpiId = words.some(word => 
+                            word.includes('bolt') && word.includes('@ibl') ||
+                            word.includes('bolt999') ||
+                            word.includes('@ibl')
+                        );
+                        
+                        if (!hasUpiId) {
+                            throw new Error('Could not find bolt999@ibl in the screenshot. Please ensure the UPI ID is visible in the payment confirmation.');
+                        }
+                    }
+
+                    // Verify amount with more flexible matching
                     if (!paymentInfo.amount) {
-                        throw new Error('Could not find the payment amount in the screenshot. Please ensure the amount is visible in the payment confirmation.');
+                        const amountMatch = cleanedText.match(/(\d+(?:,\d+)*(?:\.\d{2})?)/);
+                        if (amountMatch) {
+                            paymentInfo.amount = amountMatch[1];
+                        } else {
+                            throw new Error('Could not find the payment amount in the screenshot. Please ensure the amount is visible in the payment confirmation.');
+                        }
                     }
 
                     const userAmount = parseFloat(depositAmount);
@@ -774,8 +833,13 @@
                         throw new Error(`Payment amount mismatch. Found ₹${extractedAmount} in screenshot but you selected ₹${userAmount}. Please ensure you're uploading the correct payment confirmation.`);
                     }
 
-                    // Verify payment status
-                    if (!paymentInfo.paymentStatus || !['successful', 'success'].includes(paymentInfo.paymentStatus)) {
+                    // Verify payment status with more flexible matching
+                    const successIndicators = ['success', 'successful', 'paid', 'completed', 'done'];
+                    const hasSuccess = successIndicators.some(indicator => 
+                        cleanedText.toLowerCase().includes(indicator)
+                    );
+
+                    if (!hasSuccess) {
                         throw new Error('Could not verify payment status in the screenshot. Please ensure the payment status is visible in the confirmation.');
                     }
 
