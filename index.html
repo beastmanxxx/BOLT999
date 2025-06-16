@@ -572,211 +572,186 @@
             const [message, setMessage] = React.useState(null);
             const [lastUploadTime, setLastUploadTime] = React.useState(null);
             const [isVerifying, setIsVerifying] = React.useState(false);
+            const [extractedText, setExtractedText] = React.useState('');
+            const [isProcessing, setIsProcessing] = React.useState(false);
             const upiId = "8979873681@mbk";
             const upiQrCodeUrl = "qr.png";
 
             const depositAmounts = [200, 500, 1000, 2000, 5000, 10000];
             const MIN_DEPOSIT_AMOUNT = 200;
 
-            // Function to verify payment screenshot
-            const verifyPaymentScreenshot = async (file) => {
-                setIsVerifying(true);
+            // Function to extract payment info from text
+            const extractPaymentInfo = (text) => {
+                const paymentInfo = {
+                    amount: null,
+                    transactionId: null,
+                    utrNumber: null,
+                    orderId: null,
+                    date: null,
+                    time: null,
+                    sender: null,
+                    receiver: null,
+                    senderUpiId: null,
+                    receiverUpiId: null,
+                    paymentStatus: null
+                };
+
+                // Extract amount
+                const amountPattern = /(?:Rs\.?|₹|INR)\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i;
+                const amountMatch = text.match(amountPattern);
+                if (amountMatch) {
+                    paymentInfo.amount = amountMatch[1];
+                }
+
+                // Extract transaction ID
+                const txnPattern = /(?:TXN|Transaction)\s*ID:?\s*([A-Za-z0-9]+)/i;
+                const txnMatch = text.match(txnPattern);
+                if (txnMatch) {
+                    paymentInfo.transactionId = txnMatch[1];
+                }
+
+                // Extract UTR number
+                const utrPattern = /(?:UTR|UTR\s*No):?\s*([A-Za-z0-9]+)/i;
+                const utrMatch = text.match(utrPattern);
+                if (utrMatch) {
+                    paymentInfo.utrNumber = utrMatch[1];
+                }
+
+                // Extract UPI IDs
+                const upiPattern = /(?:UPI\s*ID:?\s*)?([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+)/g;
+                const upiMatches = [...text.matchAll(upiPattern)];
+                if (upiMatches.length >= 2) {
+                    paymentInfo.senderUpiId = upiMatches[0][1];
+                    paymentInfo.receiverUpiId = upiMatches[1][1];
+                } else if (upiMatches.length === 1) {
+                    paymentInfo.senderUpiId = upiMatches[0][1];
+                }
+
+                // Extract payment status
+                const statusPattern = /(?:Status|Payment):?\s*(Successful|Failed|Pending|Success|Failed|Pending)/i;
+                const statusMatch = text.match(statusPattern);
+                if (statusMatch) {
+                    paymentInfo.paymentStatus = statusMatch[1].toLowerCase();
+                }
+
+                return paymentInfo;
+            };
+
+            // Function to extract text from image
+            const extractTextFromImage = async (file) => {
                 try {
-                    // Check file size (max 5MB)
-                    if (file.size > 5 * 1024 * 1024) {
-                        throw new Error('Screenshot is Invalid.');
-                    }
+                    setIsProcessing(true);
+                    setExtractedText('Processing image...');
 
-                    // Create a canvas to process the image
-                    const img = new Image();
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-
-                    // Load image and process it
-                    await new Promise((resolve, reject) => {
-                        img.onload = resolve;
-                        img.onerror = reject;
-                        img.src = URL.createObjectURL(file);
-                    });
-
-                    // Check image dimensions (must be reasonable for a screenshot)
-                    if (img.width < 200 || img.height < 200 || img.width > 4000 || img.height > 4000) {
-                        throw new Error('Invalid screenshot dimensions. Please take a screenshot of your actual real payment.');
-                    }
-
-                    // Set canvas size to match image
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-
-                    // Draw image on canvas
-                    ctx.drawImage(img, 0, 0);
-
-                    // Check for screenshot indicators
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    const hasScreenshotIndicators = checkScreenshotIndicators(imageData);
-                    if (!hasScreenshotIndicators) {
-                        throw new Error('This doesn\'t appear to be a valid screenshot. Please take a correct screenshot of your payment confirmation.');
-                    }
-
-                    // Enhance image for better OCR
-                    const enhancedData = enhanceImageForOCR(imageData);
-                    ctx.putImageData(enhancedData, 0, 0);
-
-                    // Use Tesseract with improved configuration
                     const result = await Tesseract.recognize(
-                        canvas,
+                        file,
                         'eng',
                         {
-                            logger: m => console.log(m),
-                            tessedit_char_whitelist: '0123456789@.₹RsINRUPIabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
-                            tessedit_pageseg_mode: '6', // Assume uniform text orientation
-                            tessjs_create_pdf: '0',
-                            tessjs_create_hocr: '0',
-                            tessjs_create_tsv: '0',
-                            tessjs_create_box: '0',
-                            tessjs_create_unlv: '0',
-                            tessjs_create_osd: '0'
+                            logger: m => {
+                                if (m.status === 'recognizing text') {
+                                    setExtractedText(`Processing: ${Math.round(m.progress * 100)}%`);
+                                }
+                            }
                         }
                     );
 
-                    // Extract and normalize text
-                    const text = result.data.text.toLowerCase()
-                        .replace(/\s+/g, ' ')
-                        .replace(/[^\w\s@₹.]/g, '')
-                        .trim();
-
-                    console.log('Extracted text:', text); // For debugging
-
-                    // Verify UPI ID with multiple patterns and fuzzy matching
-                    const upiPatterns = [
-                        upiId.toLowerCase(),
-                        upiId.toLowerCase().replace('@', ' @'),
-                        upiId.toLowerCase().replace('@', ' @ '),
-                        upiId.toLowerCase().replace('@', ' @mbk'),
-                        'upi id: ' + upiId.toLowerCase(),
-                        'upi: ' + upiId.toLowerCase(),
-                        'paid to: ' + upiId.toLowerCase(),
-                        'beneficiary: ' + upiId.toLowerCase(),
-                        'upi id ' + upiId.toLowerCase(),
-                        'upi ' + upiId.toLowerCase(),
-                        'to ' + upiId.toLowerCase(),
-                        'recipient: ' + upiId.toLowerCase(),
-                        'receiver: ' + upiId.toLowerCase(),
-                        // Add more variations for common UPI apps
-                        'paytm: ' + upiId.toLowerCase(),
-                        'google pay: ' + upiId.toLowerCase(),
-                        'phonepe: ' + upiId.toLowerCase(),
-                        'amazon pay: ' + upiId.toLowerCase(),
-                        'bhim: ' + upiId.toLowerCase()
-                    ];
-
-                    const upiIdFound = upiPatterns.some(pattern => {
-                        const normalizedPattern = pattern.toLowerCase().replace(/\s+/g, '');
-                        const normalizedText = text.replace(/\s+/g, '');
-                        return normalizedText.includes(normalizedPattern);
-                    });
-
-                    if (!upiIdFound) {
-                        throw new Error('UPI ID verification failed. Please make sure the screenshot clearly shows payment to 8979873681@mbk. The UPI ID must be clearly visible in the payment confirmation.');
-                    }
-
-                    // Extract amount using multiple patterns with enhanced matching
-                    const amountPatterns = [
-                        /(?:rs\.?|inr|₹)\s*(\d+(?:\.\d{2})?)/i,
-                        /amount\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
-                        /paid\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
-                        /total\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
-                        /debit\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
-                        /sent\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
-                        /transfer\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
-                        // Add more patterns for different UPI apps
-                        /(?:paytm|google pay|phonepe|amazon pay|bhim)\s*(?:amount|paid|total)\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i
-                    ];
-
-                    let verifiedAmount = null;
-                    for (const pattern of amountPatterns) {
-                        const match = text.match(pattern);
-                        if (match) {
-                            verifiedAmount = parseFloat(match[1]);
-                            break;
-                        }
-                    }
-
-                    if (!verifiedAmount) {
-                        throw new Error('Could not verify payment amount in the screenshot. Please ensure the amount is clearly visible in the payment confirmation.');
-                    }
-
-                    const userAmount = parseFloat(depositAmount);
-
-                    // Verify amount matches with tolerance
-                    if (Math.abs(verifiedAmount - userAmount) > 0.01) {
-                        throw new Error(`Payment amount mismatch. Found ₹${verifiedAmount} in screenshot but you selected ₹${userAmount}. Please ensure you\'re uploading the correct payment confirmation.`);
-                    }
-
-                    // Enhanced timestamp verification
-                    const currentTime = new Date();
-                    const fileTime = new Date(file.lastModified);
-                    const timeDifference = (currentTime - fileTime) / 1000; // Convert to seconds
-
-                    // Check if screenshot is too old
-                    if (timeDifference > 60) {
-                        throw new Error('Screenshot is Invalid.');
-                    }
-
-                    // Check if screenshot is from future (indicating wrong device time)
-                    if (fileTime > currentTime) {
-                        throw new Error('Invalid screenshot timestamp. Please check your device time settings and try again.');
-                    }
-
-                    // Check if screenshot is from a different date
-                    if (fileTime.getDate() !== currentTime.getDate() || 
-                        fileTime.getMonth() !== currentTime.getMonth() || 
-                        fileTime.getFullYear() !== currentTime.getFullYear()) {
-                        throw new Error('Screenshot must be from today\'s date. Please take a fresh screenshot of your payment confirmation.');
-                    }
-
-                    // Additional verification for payment status with enhanced patterns
-                    const successPatterns = [
-                        'successful',
-                        'success',
-                        'paid',
-                        'completed',
-                        'transaction successful',
-                        'payment successful',
-                        'payment completed',
-                        'transaction completed',
-                        'money sent',
-                        'transfer successful',
-                        'transfer completed',
-                        // Add more patterns for different UPI apps
-                        'payment done',
-                        'payment processed',
-                        'transaction done',
-                        'transfer done',
-                        'sent successfully',
-                        'paid successfully',
-                        'completed successfully'
-                    ];
-
-                    const hasSuccessIndicator = successPatterns.some(pattern => text.includes(pattern));
-                    if (!hasSuccessIndicator) {
-                        throw new Error('Could not verify successful payment status in the screenshot. Please ensure the payment status (successful/completed) is clearly visible in the confirmation.');
-                    }
-
-                    // Check for transaction ID/UTR in the screenshot
-                    const transactionPatterns = [
-                        /(?:transaction|txn|utr|reference)(?:\s*(?:id|number|no|#))?\s*:?\s*([A-Za-z0-9]{8,})/i,
-                        /(?:upi|payment)(?:\s*(?:id|number|no|#))?\s*:?\s*([A-Za-z0-9]{8,})/i
-                    ];
-
-                    const hasTransactionId = transactionPatterns.some(pattern => text.match(pattern));
-                    if (!hasTransactionId) {
-                        throw new Error('Could not find transaction ID/UTR in the screenshot. Please ensure the transaction reference number is visible in the payment confirmation.');
-                    }
-
-                    return true;
+                    const paymentInfo = extractPaymentInfo(result.data.text);
+                    return paymentInfo;
                 } catch (error) {
-                    throw error;
+                    throw new Error(`Error extracting text: ${error.message}`);
+                } finally {
+                    setIsProcessing(false);
+                }
+            };
+
+            const handleManualConfirmation = async () => {
+                const amount = parseFloat(depositAmount);
+                setMessage(null);
+
+                if (isNaN(amount) || amount < MIN_DEPOSIT_AMOUNT) {
+                    onError();
+                    setMessage({ type: 'error', text: `Please select a valid amount (minimum ₹${MIN_DEPOSIT_AMOUNT}).` });
+                    return;
+                }
+                if (!utrNumber || utrNumber.length < 12) {
+                    onError();
+                    setMessage({ type: 'error', text: 'Please enter a valid UTR/Transaction ID (min 12 characters).' });
+                    return;
+                }
+                if (!paymentScreenshot) {
+                    onError();
+                    setMessage({ type: 'error', text: 'Please upload a valid payment screenshot.' });
+                    return;
+                }
+                if (!isScreenshot(paymentScreenshot)) {
+                    onError();
+                    setMessage({ type: 'error', text: 'Please upload a valid payment screenshot. Other image types are not accepted.' });
+                    return;
+                }
+
+                try {
+                    setMessage({ type: 'info', text: 'Verifying payment details from image...' });
+                    setIsVerifying(true);
+
+                    // Extract text from image using Tesseract.js
+                    const result = await Tesseract.recognize(
+                        paymentScreenshot,
+                        'eng',
+                        {
+                            logger: m => {
+                                if (m.status === 'recognizing text') {
+                                    setMessage({ type: 'info', text: `Processing image: ${Math.round(m.progress * 100)}%` });
+                                }
+                            }
+                        }
+                    );
+
+                    const text = result.data.text;
+                    
+                    // Extract payment info
+                    const amountPattern = /(?:Rs\.?|₹|INR)\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i;
+                    const amountMatch = text.match(amountPattern);
+                    const extractedAmount = amountMatch ? parseFloat(amountMatch[1]) : null;
+
+                    const upiPattern = /(?:UPI\s*ID:?\s*)?([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+)/g;
+                    const upiMatches = [...text.matchAll(upiPattern)];
+                    const receiverUpiId = upiMatches.length >= 2 ? upiMatches[1][1] : null;
+
+                    const statusPattern = /(?:Status|Payment):?\s*(Successful|Failed|Pending|Success|Failed|Pending)/i;
+                    const statusMatch = text.match(statusPattern);
+                    const paymentStatus = statusMatch ? statusMatch[1].toLowerCase() : null;
+
+                    // Verify payment details
+                    const isValidAmount = extractedAmount && Math.abs(extractedAmount - amount) < 0.01;
+                    const isValidUpiId = receiverUpiId === upiId;
+                    const isValidStatus = paymentStatus === 'successful' || paymentStatus === 'success';
+                    
+                    if (isValidAmount && isValidUpiId && isValidStatus) {
+                        // Payment verified successfully
+                        setBalance(prev => prev + amount);
+                        addDepositToHistory({
+                            amount: amount,
+                            utr: utrNumber,
+                            timestamp: new Date().toISOString()
+                        });
+                        setMessage({ type: 'success', text: `₹${amount.toFixed(2)} added to your balance with UTR: ${utrNumber}!` });
+                        setDepositAmount('');
+                        setUtrNumber('');
+                        setPaymentScreenshot(null);
+                        setTimeout(() => {
+                            setMessage(null);
+                            navigateTo('gameSelection');
+                        }, 2500);
+                    } else {
+                        // Payment verification failed
+                        let errorMessage = 'Payment verification failed: ';
+                        if (!isValidAmount) errorMessage += 'Amount mismatch. ';
+                        if (!isValidUpiId) errorMessage += 'Invalid receiver UPI ID. ';
+                        if (!isValidStatus) errorMessage += 'Payment status not successful.';
+                        setMessage({ type: 'error', text: errorMessage });
+                    }
+                } catch (error) {
+                    setMessage({ type: 'error', text: `Error verifying payment: ${error.message}` });
                 } finally {
                     setIsVerifying(false);
                 }
@@ -935,82 +910,6 @@
                     window.location.href = upiLink;
                     setMessage({ type: 'info', text: 'Redirecting to UPI app... Please complete payment there.' });
                 }
-            };
-
-            const handleManualConfirmation = () => {
-                const amount = parseFloat(depositAmount);
-                setMessage(null);
-
-                if (isNaN(amount) || amount < MIN_DEPOSIT_AMOUNT) {
-                    onError(); // Play error sound for invalid amount
-                    setMessage({ type: 'error', text: `Please select a valid amount (minimum ₹${MIN_DEPOSIT_AMOUNT}).` });
-                    return;
-                }
-                if (!utrNumber || utrNumber.length < 12) {
-                    onError(); // Play error sound for invalid UTR
-                    setMessage({ type: 'error', text: 'Please enter a valid UTR/Transaction ID (min 12 characters).' });
-                    return;
-                }
-                if (!paymentScreenshot) {
-                    onError(); // Play error sound for missing screenshot
-                    setMessage({ type: 'error', text: 'Please upload a valid payment screenshot.' });
-                    return;
-                }
-                if (!isScreenshot(paymentScreenshot)) {
-                    onError(); // Play error sound for invalid screenshot
-                    setMessage({ type: 'error', text: 'Please upload a valid payment screenshot. Other image types are not accepted.' });
-                    return;
-                }
-
-                // Show loading message
-                setMessage({ type: 'info', text: 'Verifying payment...' });
-
-                // Open text extraction page
-                const extractionWindow = window.open('hello/index.html', 'extractionWindow', 'width=800,height=600');
-                
-                // Pass the screenshot to the extraction window
-                extractionWindow.paymentScreenshot = paymentScreenshot;
-                
-                // Listen for payment info from extraction window
-                window.addEventListener('message', function(event) {
-                    if (event.data.type === 'PAYMENT_INFO') {
-                        const paymentInfo = event.data.paymentInfo;
-                        
-                        // Verify payment details
-                        const extractedAmount = parseFloat(paymentInfo.amount);
-                        const isValidAmount = !isNaN(extractedAmount) && Math.abs(extractedAmount - amount) < 0.01;
-                        const isValidUpiId = paymentInfo.receiverUpiId === '8979873681@mbk';
-                        const isValidStatus = paymentInfo.paymentStatus === 'successful' || paymentInfo.paymentStatus === 'success';
-                        
-                        if (isValidAmount && isValidUpiId && isValidStatus) {
-                            // Payment verified successfully
-                            setBalance(prev => prev + amount);
-                            addDepositToHistory({
-                                amount: amount,
-                                utr: utrNumber,
-                                timestamp: new Date().toISOString()
-                            });
-                            setMessage({ type: 'success', text: `₹${amount.toFixed(2)} added to your balance with UTR: ${utrNumber}!` });
-                            setDepositAmount('');
-                            setUtrNumber('');
-                            setPaymentScreenshot(null);
-                            setTimeout(() => {
-                                setMessage(null);
-                                navigateTo('gameSelection');
-                            }, 2500);
-                        } else {
-                            // Payment verification failed
-                            let errorMessage = 'Payment verification failed: ';
-                            if (!isValidAmount) errorMessage += 'Amount mismatch. ';
-                            if (!isValidUpiId) errorMessage += 'Invalid receiver UPI ID. ';
-                            if (!isValidStatus) errorMessage += 'Payment status not successful.';
-                            setMessage({ type: 'error', text: errorMessage });
-                        }
-                        
-                        // Close extraction window
-                        extractionWindow.close();
-                    }
-                });
             };
 
             return (
