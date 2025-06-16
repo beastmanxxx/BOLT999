@@ -567,322 +567,138 @@
         // --- Deposit Page Component ---
         const DepositPage = ({ setBalance, navigateTo, addDepositToHistory, onError }) => {
             const [depositAmount, setDepositAmount] = React.useState('');
-            const [utrNumber, setUtrNumber] = React.useState('');
             const [paymentScreenshot, setPaymentScreenshot] = React.useState(null);
             const [message, setMessage] = React.useState(null);
-            const [lastUploadTime, setLastUploadTime] = React.useState(null);
             const [isVerifying, setIsVerifying] = React.useState(false);
-            const [extractedText, setExtractedText] = React.useState('');
-            const [isProcessing, setIsProcessing] = React.useState(false);
-            const upiId = "8979873681@mbk";
+            const upiId = "bolt999@ibl";
             const upiQrCodeUrl = "qr.png";
 
             const depositAmounts = [200, 500, 1000, 2000, 5000, 10000];
             const MIN_DEPOSIT_AMOUNT = 200;
 
-            // Function to extract payment info from text
-            const extractPaymentInfo = (text) => {
-                const paymentInfo = {
-                    amount: null,
-                    transactionId: null,
-                    utrNumber: null,
-                    orderId: null,
-                    date: null,
-                    time: null,
-                    sender: null,
-                    receiver: null,
-                    senderUpiId: null,
-                    receiverUpiId: null,
-                    paymentStatus: null
-                };
-
-                // Extract amount
-                const amountPattern = /(?:Rs\.?|₹|INR)\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i;
-                const amountMatch = text.match(amountPattern);
-                if (amountMatch) {
-                    paymentInfo.amount = amountMatch[1];
-                }
-
-                // Extract transaction ID
-                const txnPattern = /(?:TXN|Transaction)\s*ID:?\s*([A-Za-z0-9]+)/i;
-                const txnMatch = text.match(txnPattern);
-                if (txnMatch) {
-                    paymentInfo.transactionId = txnMatch[1];
-                }
-
-                // Extract UTR number
-                const utrPattern = /(?:UTR|UTR\s*No):?\s*([A-Za-z0-9]+)/i;
-                const utrMatch = text.match(utrPattern);
-                if (utrMatch) {
-                    paymentInfo.utrNumber = utrMatch[1];
-                }
-
-                // Extract UPI IDs
-                const upiPattern = /(?:UPI\s*ID:?\s*)?([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+)/g;
-                const upiMatches = [...text.matchAll(upiPattern)];
-                if (upiMatches.length >= 2) {
-                    paymentInfo.senderUpiId = upiMatches[0][1];
-                    paymentInfo.receiverUpiId = upiMatches[1][1];
-                } else if (upiMatches.length === 1) {
-                    paymentInfo.senderUpiId = upiMatches[0][1];
-                }
-
-                // Extract payment status
-                const statusPattern = /(?:Status|Payment):?\s*(Successful|Failed|Pending|Success|Failed|Pending)/i;
-                const statusMatch = text.match(statusPattern);
-                if (statusMatch) {
-                    paymentInfo.paymentStatus = statusMatch[1].toLowerCase();
-                }
-
-                return paymentInfo;
-            };
-
-            // Function to extract text from image
-            const extractTextFromImage = async (file) => {
+            // Function to verify payment screenshot
+            const verifyPaymentScreenshot = async (file) => {
+                setIsVerifying(true);
                 try {
-                    setIsProcessing(true);
-                    setExtractedText('Processing image...');
-
-                    const result = await Tesseract.recognize(
-                        file,
-                        'eng',
-                        {
-                            logger: m => {
-                                if (m.status === 'recognizing text') {
-                                    setExtractedText(`Processing: ${Math.round(m.progress * 100)}%`);
-                                }
-                            }
-                        }
-                    );
-
-                    const paymentInfo = extractPaymentInfo(result.data.text);
-                    return paymentInfo;
-                } catch (error) {
-                    throw new Error(`Error extracting text: ${error.message}`);
-                } finally {
-                    setIsProcessing(false);
-                }
-            };
-
-            const handleManualConfirmation = async () => {
-                const amount = parseFloat(depositAmount);
-                setMessage(null);
-
-                if (isNaN(amount) || amount < MIN_DEPOSIT_AMOUNT) {
-                    onError();
-                    setMessage({ type: 'error', text: `Please select a valid amount (minimum ₹${MIN_DEPOSIT_AMOUNT}).` });
-                    return;
-                }
-                if (!utrNumber || utrNumber.length < 12) {
-                    onError();
-                    setMessage({ type: 'error', text: 'Please enter a valid UTR/Transaction ID (min 12 characters).' });
-                    return;
-                }
-                if (!paymentScreenshot) {
-                    onError();
-                    setMessage({ type: 'error', text: 'Please upload a valid payment screenshot.' });
-                    return;
-                }
-                if (!isScreenshot(paymentScreenshot)) {
-                    onError();
-                    setMessage({ type: 'error', text: 'Please upload a valid payment screenshot. Other image types are not accepted.' });
-                    return;
-                }
-
-                try {
-                    setMessage({ type: 'info', text: 'Verifying payment details from image...' });
-                    setIsVerifying(true);
-
-                    // Extract text from image using Tesseract.js
-                    const result = await Tesseract.recognize(
-                        paymentScreenshot,
-                        'eng',
-                        {
-                            logger: m => {
-                                if (m.status === 'recognizing text') {
-                                    setMessage({ type: 'info', text: `Processing image: ${Math.round(m.progress * 100)}%` });
-                                }
-                            }
-                        }
-                    );
-
-                    const text = result.data.text;
-                    
-                    // Extract payment info
-                    const amountPattern = /(?:Rs\.?|₹|INR)\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i;
-                    const amountMatch = text.match(amountPattern);
-                    const extractedAmount = amountMatch ? parseFloat(amountMatch[1]) : null;
-
-                    const upiPattern = /(?:UPI\s*ID:?\s*)?([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+)/g;
-                    const upiMatches = [...text.matchAll(upiPattern)];
-                    const receiverUpiId = upiMatches.length >= 2 ? upiMatches[1][1] : null;
-
-                    const statusPattern = /(?:Status|Payment):?\s*(Successful|Failed|Pending|Success|Failed|Pending)/i;
-                    const statusMatch = text.match(statusPattern);
-                    const paymentStatus = statusMatch ? statusMatch[1].toLowerCase() : null;
-
-                    // Verify payment details
-                    const isValidAmount = extractedAmount && Math.abs(extractedAmount - amount) < 0.01;
-                    const isValidUpiId = receiverUpiId === upiId;
-                    const isValidStatus = paymentStatus === 'successful' || paymentStatus === 'success';
-                    
-                    if (isValidAmount && isValidUpiId && isValidStatus) {
-                        // Payment verified successfully
-                        setBalance(prev => prev + amount);
-                        addDepositToHistory({
-                            amount: amount,
-                            utr: utrNumber,
-                            timestamp: new Date().toISOString()
-                        });
-                        setMessage({ type: 'success', text: `₹${amount.toFixed(2)} added to your balance with UTR: ${utrNumber}!` });
-                        setDepositAmount('');
-                        setUtrNumber('');
-                        setPaymentScreenshot(null);
-                        setTimeout(() => {
-                            setMessage(null);
-                            navigateTo('gameSelection');
-                        }, 2500);
-                    } else {
-                        // Payment verification failed
-                        let errorMessage = 'Payment verification failed: ';
-                        if (!isValidAmount) errorMessage += 'Amount mismatch. ';
-                        if (!isValidUpiId) errorMessage += 'Invalid receiver UPI ID. ';
-                        if (!isValidStatus) errorMessage += 'Payment status not successful.';
-                        setMessage({ type: 'error', text: errorMessage });
+                    // Check file size (max 5MB)
+                    if (file.size > 5 * 1024 * 1024) {
+                        throw new Error('Screenshot is Invalid.');
                     }
+
+                    // Create a canvas to process the image
+                    const img = new Image();
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+
+                    // Load image and process it
+                    await new Promise((resolve, reject) => {
+                        img.onload = resolve;
+                        img.onerror = reject;
+                        img.src = URL.createObjectURL(file);
+                    });
+
+                    // Check image dimensions (must be reasonable for a screenshot)
+                    if (img.width < 200 || img.height < 200 || img.width > 4000 || img.height > 4000) {
+                        throw new Error('Invalid screenshot dimensions. Please take a screenshot of your actual real payment.');
+                    }
+
+                    // Set canvas size to match image
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+
+                    // Draw image on canvas
+                    ctx.drawImage(img, 0, 0);
+
+                    // Get image data for OCR processing
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    
+                    // Use Tesseract.js for OCR
+                    const worker = await Tesseract.createWorker();
+                    await worker.loadLanguage('eng');
+                    await worker.initialize('eng');
+                    const { data: { text } } = await worker.recognize(canvas);
+                    await worker.terminate();
+
+                    // Verify UPI ID
+                    if (!text.toLowerCase().includes(upiId.toLowerCase())) {
+                        throw new Error('Could not verify payment to the correct UPI ID. Please ensure you paid to bolt999@ibl');
+                    }
+
+                    // Verify amount
+                    const amountPatterns = [
+                        /(?:rs\.?|inr|₹)\s*(\d+(?:\.\d{2})?)/i,
+                        /amount\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
+                        /paid\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
+                        /total\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
+                        /debit\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
+                        /sent\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
+                        /transfer\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
+                        /(?:paytm|google pay|phonepe|amazon pay|bhim)\s*(?:amount|paid|total)\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i
+                    ];
+
+                    let verifiedAmount = null;
+                    for (const pattern of amountPatterns) {
+                        const match = text.match(pattern);
+                        if (match) {
+                            verifiedAmount = parseFloat(match[1]);
+                            break;
+                        }
+                    }
+
+                    if (!verifiedAmount) {
+                        throw new Error('Could not verify payment amount in the screenshot. Please ensure the amount is clearly visible in the payment confirmation.');
+                    }
+
+                    const userAmount = parseFloat(depositAmount);
+
+                    // Verify amount matches with tolerance
+                    if (Math.abs(verifiedAmount - userAmount) > 0.01) {
+                        throw new Error(`Payment amount mismatch. Found ₹${verifiedAmount} in screenshot but you selected ₹${userAmount}. Please ensure you're uploading the correct payment confirmation.`);
+                    }
+
+                    // Verify payment status
+                    const successPatterns = [
+                        'successful',
+                        'success',
+                        'paid',
+                        'completed',
+                        'transaction successful',
+                        'payment successful',
+                        'payment completed',
+                        'transaction completed',
+                        'money sent',
+                        'transfer successful',
+                        'transfer completed',
+                        'payment done',
+                        'payment processed',
+                        'transaction done',
+                        'transfer done',
+                        'sent successfully',
+                        'paid successfully',
+                        'completed successfully'
+                    ];
+
+                    const hasSuccessIndicator = successPatterns.some(pattern => text.toLowerCase().includes(pattern));
+                    if (!hasSuccessIndicator) {
+                        throw new Error('Could not verify successful payment status in the screenshot. Please ensure the payment status (successful/completed) is clearly visible in the confirmation.');
+                    }
+
+                    return true;
                 } catch (error) {
-                    setMessage({ type: 'error', text: `Error verifying payment: ${error.message}` });
+                    throw error;
                 } finally {
                     setIsVerifying(false);
                 }
             };
 
-            // Function to check for screenshot indicators
-            const checkScreenshotIndicators = (imageData) => {
-                const data = imageData.data;
-                let hasStatusBar = false;
-                let hasTimeIndicator = false;
-                let hasBatteryIndicator = false;
-                let hasSignalIndicator = false;
-
-                // Check for common screenshot indicators
-                for (let i = 0; i < data.length; i += 4) {
-                    // Check for status bar (usually at the top of screenshots)
-                    if (i < imageData.width * 4 * 50) { // Check top 50 pixels
-                        const r = data[i];
-                        const g = data[i + 1];
-                        const b = data[i + 2];
-                        // Status bar usually has specific colors
-                        if (r === 0 && g === 0 && b === 0) {
-                            hasStatusBar = true;
-                        }
-                    }
-
-                    // Check for time indicator (usually in status bar)
-                    if (i < imageData.width * 4 * 30) { // Check top 30 pixels
-                        const r = data[i];
-                        const g = data[i + 1];
-                        const b = data[i + 2];
-                        // Time indicator usually has specific colors
-                        if (r === 255 && g === 255 && b === 255) {
-                            hasTimeIndicator = true;
-                        }
-                    }
-
-                    // Check for battery indicator
-                    if (i < imageData.width * 4 * 40) { // Check top 40 pixels
-                        const r = data[i];
-                        const g = data[i + 1];
-                        const b = data[i + 2];
-                        // Battery indicator usually has specific colors
-                        if (r === 0 && g === 255 && b === 0) {
-                            hasBatteryIndicator = true;
-                        }
-                    }
-
-                    // Check for signal indicator
-                    if (i < imageData.width * 4 * 40) { // Check top 40 pixels
-                        const r = data[i];
-                        const g = data[i + 1];
-                        const b = data[i + 2];
-                        // Signal indicator usually has specific colors
-                        if (r === 255 && g === 255 && b === 255) {
-                            hasSignalIndicator = true;
-                        }
-                    }
-                }
-
-                // Return true if at least two indicators are found
-                return (hasStatusBar && hasTimeIndicator) || (hasBatteryIndicator && hasSignalIndicator);
-            };
-
-            // Function to enhance image for better OCR
-            const enhanceImageForOCR = (imageData) => {
-                const data = imageData.data;
-                for (let i = 0; i < data.length; i += 4) {
-                    // Convert to grayscale
-                    const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-                    
-                    // Increase contrast
-                    const threshold = 128;
-                    const newValue = avg > threshold ? 255 : 0;
-                    
-                    data[i] = newValue;     // R
-                    data[i + 1] = newValue; // G
-                    data[i + 2] = newValue; // B
-                }
-                return imageData;
-            };
-
-            // Function to check if the uploaded file is a valid screenshot
-            const isScreenshot = async (file) => {
-                // Check file type - only accept PNG
-                if (file.type !== 'image/png') {
-                    onError(); // Play error sound for invalid file type
-                    setMessage({ 
-                        type: 'error', 
-                        text: '⚠️ Only PNG screenshots are accepted.' 
-                    });
-                    return false;
-                }
-
-                // Check if screenshot is within 60 seconds
-                const currentTime = new Date();
-                const fileTime = new Date(file.lastModified);
-                const timeDifference = (currentTime - fileTime) / 1000; // Convert to seconds
-
-                if (timeDifference > 60) {
-                    onError();
-                    setMessage({
-                        type: 'error',
-                        text: '⚠️ Screenshot is too old. Please take a fresh screenshot within 60 seconds of payment completion.'
-                    });
-                    return false;
-                }
-
-                // Check if screenshot is from a different date
-                if (fileTime.getDate() !== currentTime.getDate() || 
-                    fileTime.getMonth() !== currentTime.getMonth() || 
-                    fileTime.getFullYear() !== currentTime.getFullYear()) {
-                    onError();
-                    setMessage({
-                        type: 'error',
-                        text: '⚠️ Screenshot must be from today\'s date.'
-                    });
-                    return false;
-                }
-
-                return true;
-            };
-
             const handleFileChange = async (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                    setMessage(null); // Clear previous messages when a new file is selected
-                    if (await isScreenshot(file)) {
+                    setMessage(null);
+                    if (file.type === 'image/png') {
                         setPaymentScreenshot(file);
-                        // Additional verification is done on confirm button click, not just file selection
                     } else {
+                        setMessage({ type: 'error', text: 'Please upload a PNG image only.' });
                         setPaymentScreenshot(null);
                     }
                 }
@@ -891,7 +707,7 @@
             const generateUpiLink = () => {
                 const amount = parseFloat(depositAmount);
                 if (isNaN(amount) || amount < MIN_DEPOSIT_AMOUNT) {
-                    onError(); // Play error sound for invalid amount
+                    onError();
                     setMessage({ type: 'error', text: `Please select a valid amount (minimum ₹${MIN_DEPOSIT_AMOUNT}).` });
                     return null;
                 }
@@ -909,6 +725,43 @@
                 if (upiLink) {
                     window.location.href = upiLink;
                     setMessage({ type: 'info', text: 'Redirecting to UPI app... Please complete payment there.' });
+                }
+            };
+
+            const handleManualConfirmation = async () => {
+                const amount = parseFloat(depositAmount);
+                setMessage(null);
+
+                if (isNaN(amount) || amount < MIN_DEPOSIT_AMOUNT) {
+                    onError();
+                    setMessage({ type: 'error', text: `Please select a valid amount (minimum ₹${MIN_DEPOSIT_AMOUNT}).` });
+                    return;
+                }
+
+                if (!paymentScreenshot) {
+                    onError();
+                    setMessage({ type: 'error', text: 'Please upload a valid payment screenshot.' });
+                    return;
+                }
+
+                try {
+                    await verifyPaymentScreenshot(paymentScreenshot);
+                    
+                    setBalance(prev => prev + amount);
+                    addDepositToHistory({
+                        amount: amount,
+                        timestamp: new Date().toISOString()
+                    });
+                    setMessage({ type: 'success', text: `₹${amount.toFixed(2)} added to your balance!` });
+                    setDepositAmount('');
+                    setPaymentScreenshot(null);
+                    setTimeout(() => {
+                        setMessage(null);
+                        navigateTo('gameSelection');
+                    }, 2500);
+                } catch (error) {
+                    onError();
+                    setMessage({ type: 'error', text: error.message });
                 }
             };
 
@@ -966,16 +819,6 @@
 
                         <hr className="border-t border-gray-700 my-4" />
 
-                        <label htmlFor="utr-number" className="block text-sm font-semibold mb-2">Enter UTR / Transaction ID</label>
-                        <input
-                            id="utr-number"
-                            type="text"
-                            value={utrNumber}
-                            onChange={(e) => setUtrNumber(e.target.value)}
-                            className="w-full p-3 rounded-lg bg-gray-200 text-gray-900 mb-4 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                            placeholder="e.g., 401234567890"
-                        />
-
                         {/* Screenshot Input with verification status */}
                         <label htmlFor="payment-screenshot" className="block text-sm font-semibold mb-2">
                             Upload Payment Screenshot
@@ -992,29 +835,28 @@
                             onChange={handleFileChange}
                             className="w-full text-sm text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-yellow-400 file:text-black hover:file:bg-yellow-500 mb-4"
                         />
-                        {paymentScreenshot && (
-                            <div className="text-sm text-green-300 mb-4">
-                                <p>File selected: {paymentScreenshot.name}</p>
-                                <p className="text-xs opacity-80">Size: {(paymentScreenshot.size / 1024).toFixed(1)}KB</p>
+
+                        {message && (
+                            <div className={`p-3 rounded-lg mb-4 ${
+                                message.type === 'error' ? 'bg-red-500 bg-opacity-20 text-red-300' :
+                                message.type === 'success' ? 'bg-green-500 bg-opacity-20 text-green-300' :
+                                'bg-blue-500 bg-opacity-20 text-blue-300'
+                            }`}>
+                                {message.text}
                             </div>
                         )}
 
                         <button
                             onClick={handleManualConfirmation}
-                            className="w-full bg-yellow-400 py-3 rounded-lg font-bold text-black hover:bg-yellow-500 transition-colors"
+                            disabled={isVerifying}
+                            className={`w-full py-3 rounded-lg font-bold transition-colors ${
+                                isVerifying
+                                    ? 'bg-gray-600 cursor-not-allowed'
+                                    : 'bg-yellow-400 text-black hover:bg-yellow-500'
+                            }`}
                         >
-                            Confirm Payment (I have Paid)
+                            {isVerifying ? 'Verifying...' : 'Confirm Payment (I have Paid)'}
                         </button>
-
-                        {message && (
-                            <div className={`mt-4 p-3 rounded-lg text-center ${
-                                message.type === 'success' ? 'bg-green-200 text-green-800' :
-                                message.type === 'error' ? 'bg-red-200 text-red-800' :
-                                'bg-yellow-200 text-yellow-800'
-                            }`}>
-                                {message.text}
-                            </div>
-                        )}
                     </div>
 
                     <div className="bg-gray-800 bg-opacity-30 rounded-lg p-4">
@@ -1027,16 +869,15 @@
                             <li>The screenshot must clearly show:</li>
                             <ul className="list-disc pl-5 mt-1 space-y-1">
                                 <li>The payment amount</li>
-                                <li>The UPI ID (8979873681@mbk)</li>
+                                <li>The UPI ID (bolt999@ibl)</li>
                                 <li>Payment status (successful/completed)</li>
                                 <li>Current date and time</li>
                             </ul>
-                            <li>Enter the **UTR/Transaction ID** from your UPI app.</li>
-                            <li>**Note**: Only PNG images taken within the last 60 seconds are accepted.</li>
+                            <li>**Note**: Only PNG images are accepted.</li>
                             <li>Maximum file size: 5MB</li>
                             <li>Click **"Confirm Payment (I have Paid)"** to add the amount to your balance.</li>
-                            <li>Your balance will update immediately after all required information is submitted.</li>
-                            <li>Available deposit amounts: ₹10, ₹20, ₹50, ₹100, ₹200, ₹500, ₹1000, ₹2000, ₹5000</li>
+                            <li>Your balance will update immediately after verification.</li>
+                            <li>Available deposit amounts: ₹200, ₹500, ₹1000, ₹2000, ₹5000, ₹10000</li>
                         </ul>
                     </div>
                 </div>
