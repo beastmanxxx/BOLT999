@@ -597,6 +597,98 @@
                 return imageData;
             };
 
+            // Function to extract payment information from text
+            const extractPaymentInfo = (text) => {
+                const paymentInfo = {
+                    amount: null,
+                    transactionId: null,
+                    utrNumber: null,
+                    orderId: null,
+                    date: null,
+                    time: null,
+                    sender: null,
+                    receiver: null,
+                    senderUpiId: null,
+                    receiverUpiId: null,
+                    paymentStatus: null
+                };
+
+                // Extract amount (looking for patterns like "Rs. 1000" or "₹1000" or "INR 1000")
+                const amountPattern = /(?:Rs\.?|₹|INR)\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i;
+                const amountMatch = text.match(amountPattern);
+                if (amountMatch) {
+                    paymentInfo.amount = amountMatch[1];
+                }
+
+                // Extract transaction ID (looking for patterns like "TXN ID: 123456" or "Transaction ID: 123456")
+                const txnPattern = /(?:TXN|Transaction)\s*ID:?\s*([A-Za-z0-9]+)/i;
+                const txnMatch = text.match(txnPattern);
+                if (txnMatch) {
+                    paymentInfo.transactionId = txnMatch[1];
+                }
+
+                // Extract UTR number (looking for patterns like "UTR: 123456" or "UTR No: 123456")
+                const utrPattern = /(?:UTR|UTR\s*No):?\s*([A-Za-z0-9]+)/i;
+                const utrMatch = text.match(utrPattern);
+                if (utrMatch) {
+                    paymentInfo.utrNumber = utrMatch[1];
+                }
+
+                // Extract Order ID (looking for patterns like "Order ID: 123456" or "Order No: 123456")
+                const orderPattern = /(?:Order|Order\s*ID|Order\s*No):?\s*([A-Za-z0-9]+)/i;
+                const orderMatch = text.match(orderPattern);
+                if (orderMatch) {
+                    paymentInfo.orderId = orderMatch[1];
+                }
+
+                // Extract date (looking for various date formats)
+                const datePattern = /(\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{2,4})/i;
+                const dateMatch = text.match(datePattern);
+                if (dateMatch) {
+                    paymentInfo.date = dateMatch[1];
+                }
+
+                // Extract time (looking for time patterns like "14:30" or "2:30 PM")
+                const timePattern = /(\d{1,2}:\d{2}(?:\s*[AP]M)?)/i;
+                const timeMatch = text.match(timePattern);
+                if (timeMatch) {
+                    paymentInfo.time = timeMatch[1];
+                }
+
+                // Extract sender (looking for patterns like "From: John" or "Sender: John")
+                const senderPattern = /(?:From|Sender):?\s*([A-Za-z\s]+)/i;
+                const senderMatch = text.match(senderPattern);
+                if (senderMatch) {
+                    paymentInfo.sender = senderMatch[1].trim();
+                }
+
+                // Extract receiver (looking for patterns like "To: John" or "Receiver: John")
+                const receiverPattern = /(?:To|Receiver):?\s*([A-Za-z\s]+)/i;
+                const receiverMatch = text.match(receiverPattern);
+                if (receiverMatch) {
+                    paymentInfo.receiver = receiverMatch[1].trim();
+                }
+
+                // Extract UPI IDs (looking for patterns like "UPI ID: example@upi" or "example@upi")
+                const upiPattern = /(?:UPI\s*ID:?\s*)?([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+)/g;
+                const upiMatches = [...text.matchAll(upiPattern)];
+                if (upiMatches.length >= 2) {
+                    paymentInfo.senderUpiId = upiMatches[0][1];
+                    paymentInfo.receiverUpiId = upiMatches[1][1];
+                } else if (upiMatches.length === 1) {
+                    paymentInfo.senderUpiId = upiMatches[0][1];
+                }
+
+                // Extract payment status (looking for patterns like "Status: Successful" or "Payment Successful")
+                const statusPattern = /(?:Status|Payment):?\s*(Successful|Failed|Pending|Success|Failed|Pending)/i;
+                const statusMatch = text.match(statusPattern);
+                if (statusMatch) {
+                    paymentInfo.paymentStatus = statusMatch[1].toLowerCase();
+                }
+
+                return paymentInfo;
+            };
+
             // Function to verify payment screenshot
             const verifyPaymentScreenshot = async (file) => {
                 setIsVerifying(true);
@@ -662,148 +754,28 @@
 
                     setExtractionProgress(90);
 
-                    // Normalize text for better matching
-                    const normalizedText = text.toLowerCase()
-                        .replace(/\s+/g, ' ')
-                        .replace(/[^\w\s@₹.]/g, '')
-                        .trim();
+                    // Extract payment information
+                    const paymentInfo = extractPaymentInfo(text);
+                    setExtractedInfo(paymentInfo);
 
-                    // Extract and display information
-                    const extractedData = {
-                        rawText: text,
-                        normalizedText: normalizedText,
-                        upiId: null,
-                        amount: null,
-                        status: null
-                    };
-
-                    // Extract UPI ID with more relaxed matching
-                    const targetUpiId = 'bolt999@ibl';
-                    const upiPatterns = [
-                        targetUpiId,
-                        targetUpiId.replace('@', ' @'),
-                        targetUpiId.replace('@', ' @ '),
-                        'upi id: ' + targetUpiId,
-                        'upi: ' + targetUpiId,
-                        'paid to: ' + targetUpiId,
-                        'beneficiary: ' + targetUpiId,
-                        'upi id ' + targetUpiId,
-                        'upi ' + targetUpiId,
-                        'to ' + targetUpiId,
-                        'recipient: ' + targetUpiId,
-                        'receiver: ' + targetUpiId,
-                        // Add more variations for common UPI apps
-                        'paytm: ' + targetUpiId,
-                        'google pay: ' + targetUpiId,
-                        'phonepe: ' + targetUpiId,
-                        'amazon pay: ' + targetUpiId,
-                        'bhim: ' + targetUpiId,
-                        // Add partial matches
-                        'bolt999',
-                        '@ibl',
-                        'bolt999@',
-                        // Add common variations
-                        'bolt 999',
-                        'bolt-999',
-                        'bolt_999'
-                    ];
-
-                    // Try to find UPI ID with more relaxed matching
-                    for (const pattern of upiPatterns) {
-                        const normalizedPattern = pattern.toLowerCase().replace(/\s+/g, '');
-                        if (normalizedText.includes(normalizedPattern)) {
-                            extractedData.upiId = targetUpiId;
-                            break;
-                        }
-                    }
-
-                    // If UPI ID not found, try fuzzy matching
-                    if (!extractedData.upiId) {
-                        const words = normalizedText.split(/\s+/);
-                        for (const word of words) {
-                            if (word.includes('bolt') && word.includes('@ibl')) {
-                                extractedData.upiId = targetUpiId;
-                                break;
-                            }
-                        }
-                    }
-
-                    // Extract amount with more relaxed matching
-                    const amountPatterns = [
-                        /(?:rs\.?|inr|₹)\s*(\d+(?:\.\d{2})?)/i,
-                        /amount\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
-                        /paid\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
-                        /total\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
-                        /debit\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
-                        /sent\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
-                        /transfer\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
-                        /(?:paytm|google pay|phonepe|amazon pay|bhim)\s*(?:amount|paid|total)\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
-                        // Add more relaxed patterns
-                        /(\d+(?:\.\d{2})?)\s*(?:rs\.?|inr|₹)/i,
-                        /(\d+(?:\.\d{2})?)/i
-                    ];
-
-                    for (const pattern of amountPatterns) {
-                        const match = normalizedText.match(pattern);
-                        if (match) {
-                            extractedData.amount = parseFloat(match[1]);
-                            break;
-                        }
-                    }
-
-                    // Extract status with more relaxed matching
-                    const successPatterns = [
-                        'successful',
-                        'success',
-                        'paid',
-                        'completed',
-                        'transaction successful',
-                        'payment successful',
-                        'payment completed',
-                        'transaction completed',
-                        'money sent',
-                        'transfer successful',
-                        'transfer completed',
-                        'payment done',
-                        'payment processed',
-                        'transaction done',
-                        'transfer done',
-                        'sent successfully',
-                        'paid successfully',
-                        'completed successfully',
-                        // Add more variations
-                        'done',
-                        'sent',
-                        'processed',
-                        'transferred',
-                        'paid to',
-                        'sent to'
-                    ];
-
-                    for (const pattern of successPatterns) {
-                        if (normalizedText.includes(pattern)) {
-                            extractedData.status = 'success';
-                            break;
-                        }
-                    }
-
-                    setExtractedInfo(extractedData);
-
-                    // Verify extracted information with more relaxed rules
-                    if (!extractedData.upiId) {
+                    // Verify UPI ID
+                    if (!paymentInfo.receiverUpiId || !paymentInfo.receiverUpiId.toLowerCase().includes(upiId.toLowerCase())) {
                         throw new Error('Could not find bolt999@ibl in the screenshot. Please ensure the UPI ID is visible in the payment confirmation.');
                     }
 
-                    if (!extractedData.amount) {
+                    // Verify amount
+                    if (!paymentInfo.amount) {
                         throw new Error('Could not find the payment amount in the screenshot. Please ensure the amount is visible in the payment confirmation.');
                     }
 
                     const userAmount = parseFloat(depositAmount);
-                    if (Math.abs(extractedData.amount - userAmount) > 0.01) {
-                        throw new Error(`Payment amount mismatch. Found ₹${extractedData.amount} in screenshot but you selected ₹${userAmount}. Please ensure you're uploading the correct payment confirmation.`);
+                    const extractedAmount = parseFloat(paymentInfo.amount.replace(/,/g, ''));
+                    if (Math.abs(extractedAmount - userAmount) > 0.01) {
+                        throw new Error(`Payment amount mismatch. Found ₹${extractedAmount} in screenshot but you selected ₹${userAmount}. Please ensure you're uploading the correct payment confirmation.`);
                     }
 
-                    if (!extractedData.status) {
+                    // Verify payment status
+                    if (!paymentInfo.paymentStatus || !['successful', 'success'].includes(paymentInfo.paymentStatus)) {
                         throw new Error('Could not verify payment status in the screenshot. Please ensure the payment status is visible in the confirmation.');
                     }
 
@@ -1022,23 +994,41 @@
                                     {extractedInfo ? (
                                         <div className="space-y-2 text-sm">
                                             <div>
-                                                <span className="text-gray-400">UPI ID:</span>
-                                                <span className={`ml-2 ${extractedInfo.upiId ? 'text-green-400' : 'text-red-400'}`}>
-                                                    {extractedInfo.upiId || 'Not found'}
-                                                </span>
-                                            </div>
-                                            <div>
                                                 <span className="text-gray-400">Amount:</span>
                                                 <span className={`ml-2 ${extractedInfo.amount ? 'text-green-400' : 'text-red-400'}`}>
                                                     {extractedInfo.amount ? `₹${extractedInfo.amount}` : 'Not found'}
                                                 </span>
                                             </div>
                                             <div>
-                                                <span className="text-gray-400">Status:</span>
-                                                <span className={`ml-2 ${extractedInfo.status ? 'text-green-400' : 'text-red-400'}`}>
-                                                    {extractedInfo.status ? 'Success' : 'Not found'}
+                                                <span className="text-gray-400">Receiver UPI ID:</span>
+                                                <span className={`ml-2 ${extractedInfo.receiverUpiId ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {extractedInfo.receiverUpiId || 'Not found'}
                                                 </span>
                                             </div>
+                                            <div>
+                                                <span className="text-gray-400">Status:</span>
+                                                <span className={`ml-2 ${extractedInfo.paymentStatus ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {extractedInfo.paymentStatus || 'Not found'}
+                                                </span>
+                                            </div>
+                                            {extractedInfo.date && (
+                                                <div>
+                                                    <span className="text-gray-400">Date:</span>
+                                                    <span className="ml-2 text-gray-300">{extractedInfo.date}</span>
+                                                </div>
+                                            )}
+                                            {extractedInfo.time && (
+                                                <div>
+                                                    <span className="text-gray-400">Time:</span>
+                                                    <span className="ml-2 text-gray-300">{extractedInfo.time}</span>
+                                                </div>
+                                            )}
+                                            {extractedInfo.transactionId && (
+                                                <div>
+                                                    <span className="text-gray-400">Transaction ID:</span>
+                                                    <span className="ml-2 text-gray-300">{extractedInfo.transactionId}</span>
+                                                </div>
+                                            )}
                                             <div className="mt-4">
                                                 <span className="text-gray-400">Raw Text:</span>
                                                 <div className="mt-1 p-2 bg-gray-800 rounded text-xs font-mono overflow-auto max-h-32">
