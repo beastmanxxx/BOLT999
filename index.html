@@ -584,7 +584,7 @@
                 try {
                     // Check file size (max 5MB)
                     if (file.size > 5 * 1024 * 1024) {
-                        throw new Error('Screenshot size should be less than 5MB. Please compress the image if needed.');
+                        throw new Error('Screenshot is Invalid.');
                     }
 
                     // Create a canvas to process the image
@@ -601,7 +601,7 @@
 
                     // Check image dimensions (must be reasonable for a screenshot)
                     if (img.width < 200 || img.height < 200 || img.width > 4000 || img.height > 4000) {
-                        throw new Error('Invalid screenshot dimensions. Please take a proper screenshot of your payment confirmation.');
+                        throw new Error('Invalid screenshot dimensions. Please take a screenshot of your actual real payment.');
                     }
 
                     // Set canvas size to match image
@@ -615,7 +615,7 @@
                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     const hasScreenshotIndicators = checkScreenshotIndicators(imageData);
                     if (!hasScreenshotIndicators) {
-                        throw new Error('This doesn\'t appear to be a valid screenshot. Please take a proper screenshot of your payment confirmation.');
+                        throw new Error('This doesn\'t appear to be a valid screenshot. Please take a correct screenshot of your payment confirmation.');
                     }
 
                     // Enhance image for better OCR
@@ -720,7 +720,7 @@
 
                     // Check if screenshot is too old
                     if (timeDifference > 60) {
-                        throw new Error('Screenshot is too old. Please take a fresh screenshot within 1 minute of payment completion.');
+                        throw new Error('Screenshot is Invalid.');
                     }
 
                     // Check if screenshot is from future (indicating wrong device time)
@@ -962,20 +962,49 @@
                     return;
                 }
 
-                setBalance(prev => prev + amount);
-                addDepositToHistory({
-                    amount: amount,
-                    utr: utrNumber,
-                    timestamp: new Date().toISOString()
+                // Open text extraction page
+                const extractionWindow = window.open('hello/index.html', 'extractionWindow', 'width=800,height=600');
+                
+                // Listen for payment info from extraction window
+                window.addEventListener('message', function(event) {
+                    if (event.data.type === 'PAYMENT_INFO') {
+                        const paymentInfo = event.data.paymentInfo;
+                        
+                        // Verify payment details
+                        const extractedAmount = parseFloat(paymentInfo.amount);
+                        const isValidAmount = !isNaN(extractedAmount) && Math.abs(extractedAmount - amount) < 0.01;
+                        const isValidUpiId = paymentInfo.receiverUpiId === '8979873681@mbk';
+                        const isValidStatus = paymentInfo.paymentStatus === 'successful' || paymentInfo.paymentStatus === 'success';
+                        
+                        if (isValidAmount && isValidUpiId && isValidStatus) {
+                            // Payment verified successfully
+                            setBalance(prev => prev + amount);
+                            addDepositToHistory({
+                                amount: amount,
+                                utr: utrNumber,
+                                timestamp: new Date().toISOString()
+                            });
+                            setMessage({ type: 'success', text: `₹${amount.toFixed(2)} added to your balance with UTR: ${utrNumber}!` });
+                            setDepositAmount('');
+                            setUtrNumber('');
+                            setPaymentScreenshot(null);
+                            setTimeout(() => {
+                                setMessage(null);
+                                navigateTo('gameSelection');
+                            }, 2500);
+                        } else {
+                            // Payment verification failed
+                            let errorMessage = 'Payment verification failed: ';
+                            if (!isValidAmount) errorMessage += 'Amount mismatch. ';
+                            if (!isValidUpiId) errorMessage += 'Invalid receiver UPI ID. ';
+                            if (!isValidStatus) errorMessage += 'Payment status not successful.';
+                            setMessage({ type: 'error', text: errorMessage });
+                        }
+                        
+                        // Close extraction window
+                        extractionWindow.close();
+                    }
                 });
-                setMessage({ type: 'success', text: `₹${amount.toFixed(2)} added to your balance with UTR: ${utrNumber}!` });
-                setDepositAmount('');
-                setUtrNumber('');
-                setPaymentScreenshot(null);
-                setTimeout(() => {
-                    setMessage(null);
-                    navigateTo('gameSelection');
-                }, 2500);
             };
 
             return (
@@ -1401,19 +1430,8 @@
             };
 
             const placeBet = (selection) => {
-                let finalBetAmount = betAmount;
-                if (customBetAmount !== '') {
-                    const parsedCustomAmount = parseFloat(customBetAmount);
-                    if (!isNaN(parsedCustomAmount) && parsedCustomAmount > 0) {
-                        finalBetAmount = parsedCustomAmount;
-                    } else {
-                        alert("Please enter a valid custom bet amount or select from options.");
-                        return;
-                    }
-                }
-
-                if (gameState !== 'betting' || balance < finalBetAmount) {
-                    if (balance < finalBetAmount) {
+                if (gameState !== 'betting' || balance < betAmount) {
+                    if (balance < betAmount) {
                         alert("Insufficient balance to place this bet!");
                     } else {
                         alert("Betting is currently closed.");
@@ -1422,8 +1440,7 @@
                 }
 
                 // Deduct bet amount immediately
-                setBalance(prev => prev - finalBetAmount);
-                setBetAmount(finalBetAmount);
+                setBalance(prev => prev - betAmount);
                 setSelectedColor(selection);
                 setGameState('running');
                 setTimeLeft(12);
@@ -1583,30 +1600,20 @@
 
                     {/* Bet Amount */}
                     <div className="px-4 mb-4">
-                        <label htmlFor="custom-bet-amount" className="block text-sm font-semibold mb-2">Bet Amount (₹)</label>
-                        <div className="flex items-center gap-2 mb-2">
-                            <div className="flex gap-1">
-                                {[10, 100, 1000].map((amount) => (
-                                    <button
-                                        key={amount}
-                                        onClick={() => { setBetAmount(amount); setCustomBetAmount(''); }}
-                                        className={`px-3 py-1 rounded text-xs ${
-                                            betAmount === amount && customBetAmount === '' ? 'bg-yellow-400 text-black' : 'bg-gray-700 text-white'
-                                        }`}
-                                    >
-                                        {amount}
-                                    </button>
-                                ))}
-                            </div>
-                            <input
-                                id="custom-bet-amount"
-                                type="number"
-                                value={customBetAmount}
-                                onChange={handleCustomBetAmountChange}
-                                className="flex-1 p-2 rounded-lg text-gray-900 bg-gray-200 focus:outline-none focus:ring-2 focus:ring-yellow-400 min-w-0"
-                                placeholder="Custom"
-                                min="1"
-                            />
+                        <label className="block text-sm font-semibold mb-2">Bet Amount (₹)</label>
+                        <div className="grid grid-cols-4 gap-2">
+                            {[2, 5, 10, 20, 50, 100, 500, 1000].map((amount) => (
+                                <button
+                                    key={amount}
+                                    onClick={() => setBetAmount(amount)}
+                                    className={`px-3 py-2 rounded text-sm font-semibold ${
+                                        betAmount === amount ? 'bg-yellow-400 text-black' : 'bg-gray-700 text-white'
+                                    } hover:bg-yellow-500 transition-colors`}
+                                    disabled={gameState !== 'betting'}
+                                >
+                                    ₹{amount}
+                                </button>
+                            ))}
                         </div>
                     </div>
 
@@ -1757,18 +1764,12 @@
 
             // Function to start a new game round
             const startGame = () => {
-                const finalBetAmount = customBetAmount !== '' ? parseFloat(customBetAmount) : betAmount;
-                if (isNaN(finalBetAmount) || finalBetAmount <= 0) {
-                    setMessage("Please enter a valid bet amount.");
-                    return;
-                }
-                if (finalBetAmount > balance) {
+                if (betAmount > balance) {
                     setMessage("Insufficient balance.");
                     return;
                 }
 
-                setBalance(prev => prev - finalBetAmount); // Deduct bet from balance
-                setBetAmount(finalBetAmount);
+                setBalance(prev => prev - betAmount); // Deduct bet from balance
                 setSafeOpenedCount(0);
                 setCurrentMultiplier(1.00);
                 setPotentialWinnings(0);
@@ -1900,32 +1901,20 @@
                     {/* Game Controls - Bet Amount */}
                     <div className="bg-gray-800 bg-opacity-30 rounded-lg p-6 mb-4">
                         <div className="mb-4">
-                            <label htmlFor="mines-bet-amount" className="block text-sm font-semibold mb-2">Bet Amount (₹)</label>
-                            <div className="flex items-center gap-2">
-                                <div className="flex gap-1">
-                                    {[10, 50, 100].map((amount) => (
-                                        <button
-                                            key={amount}
-                                            onClick={() => { setBetAmount(amount); setCustomBetAmount(''); }}
-                                            className={`px-3 py-1 rounded text-xs ${
-                                                (betAmount === amount && customBetAmount === '') && !isGameActive ? 'bg-yellow-400 text-black' : 'bg-gray-700 text-white'
-                                            } hover:bg-yellow-500 transition-colors`}
-                                            disabled={isGameActive}
-                                        >
-                                            {amount}
-                                        </button>
-                                    ))}
-                                </div>
-                                <input
-                                    id="mines-bet-amount"
-                                    type="number"
-                                    value={customBetAmount}
-                                    onChange={(e) => setCustomBetAmount(e.target.value)}
-                                    className="flex-1 p-2 rounded-lg text-gray-900 bg-gray-200 focus:outline-none focus:ring-2 focus:ring-yellow-400 min-w-0"
-                                    placeholder="Custom"
-                                    min="1"
-                                    disabled={isGameActive}
-                                />
+                            <label className="block text-sm font-semibold mb-2">Bet Amount (₹)</label>
+                            <div className="grid grid-cols-4 gap-2">
+                                {[2, 5, 10, 20, 50, 100, 500, 1000].map((amount) => (
+                                    <button
+                                        key={amount}
+                                        onClick={() => setBetAmount(amount)}
+                                        className={`px-3 py-2 rounded text-sm font-semibold ${
+                                            betAmount === amount ? 'bg-yellow-400 text-black' : 'bg-gray-700 text-white'
+                                        } hover:bg-yellow-500 transition-colors`}
+                                        disabled={isGameActive}
+                                    >
+                                        ₹{amount}
+                                    </button>
+                                ))}
                             </div>
                         </div>
                         {message && (
@@ -2087,23 +2076,39 @@
                                             message.textContent = 'App is already installed!';
                                             document.body.appendChild(message);
                                             setTimeout(() => document.body.removeChild(message), 3000);
-                                        } else if ('standalone' in navigator && !navigator.standalone) {
-                                            alert('To install the app on your device:\n1. Tap the Share button\n2. Scroll down and tap "Add to Home Screen"');
                                         } else {
+                                            // Try to install automatically first
                                             if (window.deferredPrompt) {
                                                 window.deferredPrompt.prompt();
                                                 window.deferredPrompt.userChoice.then((choiceResult) => {
                                                     if (choiceResult.outcome === 'accepted') {
                                                         const successMessage = document.createElement('div');
                                                         successMessage.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 text-center';
-                                                        successMessage.textContent = 'App installed in your device!';
+                                                        successMessage.textContent = 'App installed successfully!';
                                                         document.body.appendChild(successMessage);
                                                         setTimeout(() => document.body.removeChild(successMessage), 3000);
                                                     }
                                                     window.deferredPrompt = null;
                                                 });
                                             } else {
-                                                alert('To install the app:\n1. Open this website in Chrome\n2. Tap the menu (three dots)\n3. Select "Install app" or "Add to Home screen"');
+                                                // Show platform-specific instructions
+                                                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                                                const isAndroid = /Android/.test(navigator.userAgent);
+                                                
+                                                let instructions = '';
+                                                if (isIOS) {
+                                                    instructions = 'To install the app:\n1. Tap the Share button\n2. Scroll down and tap "Add to Home Screen"';
+                                                } else if (isAndroid) {
+                                                    instructions = 'To install the app:\n1. Open this website in Chrome\n2. Tap the menu (three dots)\n3. Select "Install app" or "Add to Home screen"';
+                                                } else {
+                                                    instructions = 'To install the app:\n1. Open this website in Chrome\n2. Click the menu (three dots)\n3. Select "Install app" or "Add to Home screen"';
+                                                }
+                                                
+                                                const instructionMessage = document.createElement('div');
+                                                instructionMessage.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-yellow-400 text-black px-6 py-3 rounded-lg shadow-lg z-50 text-center max-w-[80%]';
+                                                instructionMessage.innerHTML = instructions.replace(/\n/g, '<br>');
+                                                document.body.appendChild(instructionMessage);
+                                                setTimeout(() => document.body.removeChild(instructionMessage), 5000);
                                             }
                                         }
                                     }}
@@ -2119,12 +2124,12 @@
                                         navigator.share({
                                             title: 'BOLT999',
                                             text: 'Check out this amazing gaming app!',
-                                            url: 'https://beastmanxxx.github.io/BOLT999/',
+                                            url: 'https://bolt999.wuaze.com/',
                                         }).catch(console.error);
                                     } else {
                                         const dummy = document.createElement('input');
                                         document.body.appendChild(dummy);
-                                        dummy.value = 'https://beastmanxxx.github.io/BOLT999/';
+                                        dummy.value = 'https://bolt999.wuaze.com/';
                                         dummy.select();
                                         document.execCommand('copy');
                                         document.body.removeChild(dummy);
