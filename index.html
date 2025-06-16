@@ -962,8 +962,14 @@
                     return;
                 }
 
+                // Show loading message
+                setMessage({ type: 'info', text: 'Verifying payment...' });
+
                 // Open text extraction page
                 const extractionWindow = window.open('hello/index.html', 'extractionWindow', 'width=800,height=600');
+                
+                // Pass the screenshot to the extraction window
+                extractionWindow.paymentScreenshot = paymentScreenshot;
                 
                 // Listen for payment info from extraction window
                 window.addEventListener('message', function(event) {
