@@ -571,6 +571,8 @@
             const [message, setMessage] = React.useState(null);
             const [isVerifying, setIsVerifying] = React.useState(false);
             const [extractionProgress, setExtractionProgress] = React.useState(0);
+            const [extractedInfo, setExtractedInfo] = React.useState(null);
+            const [previewUrl, setPreviewUrl] = React.useState(null);
             const upiId = "bolt999@ibl";
             const upiQrCodeUrl = "qr.png";
 
@@ -599,6 +601,7 @@
             const verifyPaymentScreenshot = async (file) => {
                 setIsVerifying(true);
                 setExtractionProgress(0);
+                setExtractedInfo(null);
                 try {
                     // Check file size (max 5MB)
                     if (file.size > 5 * 1024 * 1024) {
@@ -651,7 +654,7 @@
 
                     const { data: { text } } = await worker.recognize(canvas, {
                         tessedit_char_whitelist: '0123456789@.₹RsINRUPIabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
-                        tessedit_pageseg_mode: '6', // Assume uniform text orientation
+                        tessedit_pageseg_mode: '6',
                         tessjs_create_pdf: '0',
                         tessjs_create_hocr: '0',
                         tessjs_create_tsv: '0',
@@ -670,7 +673,16 @@
                         .replace(/[^\w\s@₹.]/g, '')
                         .trim();
 
-                    // Verify UPI ID with multiple patterns
+                    // Extract and display information
+                    const extractedData = {
+                        rawText: text,
+                        normalizedText: normalizedText,
+                        upiId: null,
+                        amount: null,
+                        status: null
+                    };
+
+                    // Extract UPI ID
                     const upiPatterns = [
                         upiId.toLowerCase(),
                         upiId.toLowerCase().replace('@', ' @'),
@@ -686,16 +698,15 @@
                         'receiver: ' + upiId.toLowerCase()
                     ];
 
-                    const upiIdFound = upiPatterns.some(pattern => {
+                    for (const pattern of upiPatterns) {
                         const normalizedPattern = pattern.toLowerCase().replace(/\s+/g, '');
-                        return normalizedText.includes(normalizedPattern);
-                    });
-
-                    if (!upiIdFound) {
-                        throw new Error('Could not verify payment to the correct UPI ID. Please ensure you paid to bolt999@ibl');
+                        if (normalizedText.includes(normalizedPattern)) {
+                            extractedData.upiId = upiId;
+                            break;
+                        }
                     }
 
-                    // Verify amount
+                    // Extract amount
                     const amountPatterns = [
                         /(?:rs\.?|inr|₹)\s*(\d+(?:\.\d{2})?)/i,
                         /amount\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i,
@@ -707,27 +718,15 @@
                         /(?:paytm|google pay|phonepe|amazon pay|bhim)\s*(?:amount|paid|total)\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d{2})?)/i
                     ];
 
-                    let verifiedAmount = null;
                     for (const pattern of amountPatterns) {
                         const match = normalizedText.match(pattern);
                         if (match) {
-                            verifiedAmount = parseFloat(match[1]);
+                            extractedData.amount = parseFloat(match[1]);
                             break;
                         }
                     }
 
-                    if (!verifiedAmount) {
-                        throw new Error('Could not verify payment amount in the screenshot. Please ensure the amount is clearly visible in the payment confirmation.');
-                    }
-
-                    const userAmount = parseFloat(depositAmount);
-
-                    // Verify amount matches with tolerance
-                    if (Math.abs(verifiedAmount - userAmount) > 0.01) {
-                        throw new Error(`Payment amount mismatch. Found ₹${verifiedAmount} in screenshot but you selected ₹${userAmount}. Please ensure you're uploading the correct payment confirmation.`);
-                    }
-
-                    // Verify payment status
+                    // Extract status
                     const successPatterns = [
                         'successful',
                         'success',
@@ -749,8 +748,30 @@
                         'completed successfully'
                     ];
 
-                    const hasSuccessIndicator = successPatterns.some(pattern => normalizedText.includes(pattern));
-                    if (!hasSuccessIndicator) {
+                    for (const pattern of successPatterns) {
+                        if (normalizedText.includes(pattern)) {
+                            extractedData.status = 'success';
+                            break;
+                        }
+                    }
+
+                    setExtractedInfo(extractedData);
+
+                    // Verify extracted information
+                    if (!extractedData.upiId) {
+                        throw new Error('Could not verify payment to the correct UPI ID. Please ensure you paid to bolt999@ibl');
+                    }
+
+                    if (!extractedData.amount) {
+                        throw new Error('Could not verify payment amount in the screenshot. Please ensure the amount is clearly visible in the payment confirmation.');
+                    }
+
+                    const userAmount = parseFloat(depositAmount);
+                    if (Math.abs(extractedData.amount - userAmount) > 0.01) {
+                        throw new Error(`Payment amount mismatch. Found ₹${extractedData.amount} in screenshot but you selected ₹${userAmount}. Please ensure you're uploading the correct payment confirmation.`);
+                    }
+
+                    if (!extractedData.status) {
                         throw new Error('Could not verify successful payment status in the screenshot. Please ensure the payment status (successful/completed) is clearly visible in the confirmation.');
                     }
 
@@ -770,9 +791,13 @@
                     setMessage(null);
                     if (file.type === 'image/png') {
                         setPaymentScreenshot(file);
+                        // Create preview URL
+                        const url = URL.createObjectURL(file);
+                        setPreviewUrl(url);
                     } else {
                         setMessage({ type: 'error', text: 'Please upload a PNG image only.' });
                         setPaymentScreenshot(null);
+                        setPreviewUrl(null);
                     }
                 }
             };
@@ -943,6 +968,66 @@
                                 <p className="text-xs text-green-400 mt-1 text-center">
                                     Extracting text from image... {extractionProgress}%
                                 </p>
+                            </div>
+                        )}
+
+                        {/* Image Preview and Extracted Info */}
+                        {isVerifying && previewUrl && (
+                            <div className="mt-4 grid grid-cols-2 gap-4">
+                                {/* Image Preview */}
+                                <div className="bg-gray-900 rounded-lg p-4">
+                                    <h3 className="text-sm font-semibold mb-2 text-yellow-300">Payment Screenshot</h3>
+                                    <img 
+                                        src={previewUrl} 
+                                        alt="Payment Screenshot" 
+                                        className="w-full h-auto rounded-lg border border-gray-700"
+                                    />
+                                </div>
+
+                                {/* Extracted Information */}
+                                <div className="bg-gray-900 rounded-lg p-4">
+                                    <h3 className="text-sm font-semibold mb-2 text-yellow-300">Extracted Information</h3>
+                                    {extractedInfo ? (
+                                        <div className="space-y-2 text-sm">
+                                            <div>
+                                                <span className="text-gray-400">UPI ID:</span>
+                                                <span className={`ml-2 ${extractedInfo.upiId ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {extractedInfo.upiId || 'Not found'}
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-400">Amount:</span>
+                                                <span className={`ml-2 ${extractedInfo.amount ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {extractedInfo.amount ? `₹${extractedInfo.amount}` : 'Not found'}
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-400">Status:</span>
+                                                <span className={`ml-2 ${extractedInfo.status ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {extractedInfo.status ? 'Success' : 'Not found'}
+                                                </span>
+                                            </div>
+                                            <div className="mt-4">
+                                                <span className="text-gray-400">Raw Text:</span>
+                                                <div className="mt-1 p-2 bg-gray-800 rounded text-xs font-mono overflow-auto max-h-32">
+                                                    {extractedInfo.rawText}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p className="text-gray-400 text-sm">Extracting information...</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {message && (
+                            <div className={`p-3 rounded-lg mb-4 ${
+                                message.type === 'error' ? 'bg-red-500 bg-opacity-20 text-red-300' :
+                                message.type === 'success' ? 'bg-green-500 bg-opacity-20 text-green-300' :
+                                'bg-blue-500 bg-opacity-20 text-blue-300'
+                            }`}>
+                                {message.text}
                             </div>
                         )}
                     </div>
