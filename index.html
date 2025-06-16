@@ -567,408 +567,47 @@
         // --- Deposit Page Component ---
         const DepositPage = ({ setBalance, navigateTo, addDepositToHistory, onError }) => {
             const [depositAmount, setDepositAmount] = React.useState('');
-            const [paymentScreenshot, setPaymentScreenshot] = React.useState(null);
             const [message, setMessage] = React.useState(null);
-            const [isVerifying, setIsVerifying] = React.useState(false);
-            const [extractionProgress, setExtractionProgress] = React.useState(0);
-            const [extractedInfo, setExtractedInfo] = React.useState(null);
-            const [previewUrl, setPreviewUrl] = React.useState(null);
             const upiId = "bolt999@ibl";
             const upiQrCodeUrl = "qr.png";
 
-            const depositAmounts = [200, 500, 1000, 2000, 5000, 10000];
-            const MIN_DEPOSIT_AMOUNT = 200;
-
-            // Function to enhance image for better OCR
-            const enhanceImageForOCR = (imageData) => {
-                const { width, height, data } = imageData;
-                const enhancedData = new Uint8ClampedArray(data.length);
-
-                // Convert to grayscale and increase contrast
-                for (let i = 0; i < data.length; i += 4) {
-                    const r = data[i];
-                    const g = data[i + 1];
-                    const b = data[i + 2];
-                    
-                    // Convert to grayscale
-                    const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-                    
-                    // Increase contrast
-                    const contrast = 1.5; // Contrast factor
-                    const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
-                    const enhancedGray = factor * (gray - 128) + 128;
-                    
-                    // Apply threshold for better text visibility
-                    const threshold = 128;
-                    const finalGray = enhancedGray > threshold ? 255 : 0;
-                    
-                    enhancedData[i] = finalGray;
-                    enhancedData[i + 1] = finalGray;
-                    enhancedData[i + 2] = finalGray;
-                    enhancedData[i + 3] = data[i + 3];
-                }
-
-                return new ImageData(enhancedData, width, height);
-            };
-
-            // Function to preprocess image for better OCR
-            const preprocessImage = async (file) => {
-                return new Promise((resolve, reject) => {
-                    const img = new Image();
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-
-                    img.onload = () => {
-                        // Set canvas size to match image
-                        canvas.width = img.width;
-                        canvas.height = img.height;
-
-                        // Draw original image
-                        ctx.drawImage(img, 0, 0);
-
-                        // Get image data
-                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-                        // Apply image enhancement
-                        const enhancedData = enhanceImageForOCR(imageData);
-                        ctx.putImageData(enhancedData, 0, 0);
-
-                        // Apply additional processing
-                        ctx.filter = 'contrast(1.5) brightness(1.2)';
-                        ctx.drawImage(canvas, 0, 0);
-
-                        // Convert to base64
-                        const processedImage = canvas.toDataURL('image/png');
-                        resolve(processedImage);
-                    };
-
-                    img.onerror = reject;
-                    img.src = URL.createObjectURL(file);
-                });
-            };
-
-            // Function to extract payment information from text
-            const extractPaymentInfo = (text) => {
-                const paymentInfo = {
-                    amount: null,
-                    transactionId: null,
-                    utrNumber: null,
-                    orderId: null,
-                    date: null,
-                    time: null,
-                    sender: null,
-                    receiver: null,
-                    senderUpiId: null,
-                    receiverUpiId: null,
-                    paymentStatus: null
-                };
-
-                // Extract amount (looking for patterns like "Rs. 1000" or "₹1000" or "INR 1000")
-                const amountPattern = /(?:Rs\.?|₹|INR)\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i;
-                const amountMatch = text.match(amountPattern);
-                if (amountMatch) {
-                    paymentInfo.amount = amountMatch[1];
-                }
-
-                // Extract transaction ID (looking for patterns like "TXN ID: 123456" or "Transaction ID: 123456")
-                const txnPattern = /(?:TXN|Transaction)\s*ID:?\s*([A-Za-z0-9]+)/i;
-                const txnMatch = text.match(txnPattern);
-                if (txnMatch) {
-                    paymentInfo.transactionId = txnMatch[1];
-                }
-
-                // Extract UTR number (looking for patterns like "UTR: 123456" or "UTR No: 123456")
-                const utrPattern = /(?:UTR|UTR\s*No):?\s*([A-Za-z0-9]+)/i;
-                const utrMatch = text.match(utrPattern);
-                if (utrMatch) {
-                    paymentInfo.utrNumber = utrMatch[1];
-                }
-
-                // Extract Order ID (looking for patterns like "Order ID: 123456" or "Order No: 123456")
-                const orderPattern = /(?:Order|Order\s*ID|Order\s*No):?\s*([A-Za-z0-9]+)/i;
-                const orderMatch = text.match(orderPattern);
-                if (orderMatch) {
-                    paymentInfo.orderId = orderMatch[1];
-                }
-
-                // Extract date (looking for various date formats)
-                const datePattern = /(\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{2,4})/i;
-                const dateMatch = text.match(datePattern);
-                if (dateMatch) {
-                    paymentInfo.date = dateMatch[1];
-                }
-
-                // Extract time (looking for time patterns like "14:30" or "2:30 PM")
-                const timePattern = /(\d{1,2}:\d{2}(?:\s*[AP]M)?)/i;
-                const timeMatch = text.match(timePattern);
-                if (timeMatch) {
-                    paymentInfo.time = timeMatch[1];
-                }
-
-                // Extract sender (looking for patterns like "From: John" or "Sender: John")
-                const senderPattern = /(?:From|Sender):?\s*([A-Za-z\s]+)/i;
-                const senderMatch = text.match(senderPattern);
-                if (senderMatch) {
-                    paymentInfo.sender = senderMatch[1].trim();
-                }
-
-                // Extract receiver (looking for patterns like "To: John" or "Receiver: John")
-                const receiverPattern = /(?:To|Receiver):?\s*([A-Za-z\s]+)/i;
-                const receiverMatch = text.match(receiverPattern);
-                if (receiverMatch) {
-                    paymentInfo.receiver = receiverMatch[1].trim();
-                }
-
-                // Extract UPI IDs (looking for patterns like "UPI ID: example@upi" or "example@upi")
-                const upiPattern = /(?:UPI\s*ID:?\s*)?([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+)/g;
-                const upiMatches = [...text.matchAll(upiPattern)];
-                if (upiMatches.length >= 2) {
-                    paymentInfo.senderUpiId = upiMatches[0][1];
-                    paymentInfo.receiverUpiId = upiMatches[1][1];
-                } else if (upiMatches.length === 1) {
-                    paymentInfo.senderUpiId = upiMatches[0][1];
-                }
-
-                // Extract payment status (looking for patterns like "Status: Successful" or "Payment Successful")
-                const statusPattern = /(?:Status|Payment):?\s*(Successful|Failed|Pending|Success|Failed|Pending)/i;
-                const statusMatch = text.match(statusPattern);
-                if (statusMatch) {
-                    paymentInfo.paymentStatus = statusMatch[1].toLowerCase();
-                }
-
-                return paymentInfo;
-            };
-
-            // Function to verify payment screenshot
-            const verifyPaymentScreenshot = async (file) => {
-                setIsVerifying(true);
-                setExtractionProgress(0);
-                setExtractedInfo(null);
-                try {
-                    // Check file size (max 5MB)
-                    if (file.size > 5 * 1024 * 1024) {
-                        throw new Error('Screenshot is Invalid.');
-                    }
-
-                    setExtractionProgress(20);
-
-                    // Preprocess image
-                    const processedImage = await preprocessImage(file);
-                    setExtractionProgress(40);
-
-                    // Initialize Tesseract worker with improved configuration
-                    const worker = await Tesseract.createWorker();
-                    await worker.loadLanguage('eng');
-                    await worker.initialize('eng');
-
-                    // Configure Tesseract for better text recognition
-                    await worker.setParameters({
-                        tessedit_char_whitelist: '0123456789@.₹RsINRUPIabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
-                        tessedit_pageseg_mode: '6', // Assume uniform text
-                        tessjs_create_pdf: '0',
-                        tessjs_create_hocr: '0',
-                        tessjs_create_tsv: '0',
-                        tessjs_create_box: '0',
-                        tessjs_create_unlv: '0',
-                        tessjs_create_osd: '0'
-                    });
-
-                    setExtractionProgress(60);
-
-                    // Perform OCR with multiple attempts
-                    let extractedText = '';
-                    const attempts = 3;
-                    
-                    for (let i = 0; i < attempts; i++) {
-                        const { data: { text } } = await worker.recognize(processedImage);
-                        extractedText += text + ' ';
-                        setExtractionProgress(60 + (i + 1) * 10);
-                    }
-
-                    await worker.terminate();
-                    setExtractionProgress(90);
-
-                    // Clean and normalize extracted text
-                    const cleanedText = extractedText
-                        .replace(/\s+/g, ' ')
-                        .replace(/[^\w\s@₹.,:-]/g, '')
-                        .trim();
-
-                    // Extract payment information
-                    const paymentInfo = extractPaymentInfo(cleanedText);
-                    paymentInfo.rawText = cleanedText;
-                    setExtractedInfo(paymentInfo);
-
-                    // Verify UPI ID with fuzzy matching
-                    const targetUpiId = upiId.toLowerCase();
-                    const foundUpiId = paymentInfo.receiverUpiId?.toLowerCase();
-                    
-                    if (!foundUpiId || !foundUpiId.includes(targetUpiId)) {
-                        // Try fuzzy matching
-                        const words = cleanedText.toLowerCase().split(/\s+/);
-                        const hasUpiId = words.some(word => 
-                            word.includes('bolt') && word.includes('@ibl') ||
-                            word.includes('bolt999') ||
-                            word.includes('@ibl')
-                        );
-                        
-                        if (!hasUpiId) {
-                            throw new Error('Could not find bolt999@ibl in the screenshot. Please ensure the UPI ID is visible in the payment confirmation.');
-                        }
-                    }
-
-                    // Verify amount with more flexible matching
-                    if (!paymentInfo.amount) {
-                        const amountMatch = cleanedText.match(/(\d+(?:,\d+)*(?:\.\d{2})?)/);
-                        if (amountMatch) {
-                            paymentInfo.amount = amountMatch[1];
-                        } else {
-                            throw new Error('Could not find the payment amount in the screenshot. Please ensure the amount is visible in the payment confirmation.');
-                        }
-                    }
-
-                    const userAmount = parseFloat(depositAmount);
-                    const extractedAmount = parseFloat(paymentInfo.amount.replace(/,/g, ''));
-                    if (Math.abs(extractedAmount - userAmount) > 0.01) {
-                        throw new Error(`Payment amount mismatch. Found ₹${extractedAmount} in screenshot but you selected ₹${userAmount}. Please ensure you're uploading the correct payment confirmation.`);
-                    }
-
-                    // Verify payment status with more flexible matching
-                    const successIndicators = ['success', 'successful', 'paid', 'completed', 'done'];
-                    const hasSuccess = successIndicators.some(indicator => 
-                        cleanedText.toLowerCase().includes(indicator)
-                    );
-
-                    if (!hasSuccess) {
-                        throw new Error('Could not verify payment status in the screenshot. Please ensure the payment status is visible in the confirmation.');
-                    }
-
-                    setExtractionProgress(100);
-                    return true;
-                } catch (error) {
-                    throw error;
-                } finally {
-                    setIsVerifying(false);
-                    setExtractionProgress(0);
-                }
-            };
-
-            const handleFileChange = async (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    setMessage(null);
-                    if (file.type === 'image/png') {
-                        setPaymentScreenshot(file);
-                        // Create preview URL
-                        const url = URL.createObjectURL(file);
-                        setPreviewUrl(url);
-                    } else {
-                        setMessage({ type: 'error', text: 'Please upload a PNG image only.' });
-                        setPaymentScreenshot(null);
-                        setPreviewUrl(null);
-                    }
-                }
-            };
-
-            const generateUpiLink = () => {
-                const amount = parseFloat(depositAmount);
-                if (isNaN(amount) || amount < MIN_DEPOSIT_AMOUNT) {
-                    onError();
-                    setMessage({ type: 'error', text: `Please select a valid amount (minimum ₹${MIN_DEPOSIT_AMOUNT}).` });
-                    return null;
-                }
-                const encodedUpiId = encodeURIComponent(upiId);
-                const encodedAmount = encodeURIComponent(amount.toFixed(2));
-                const encodedPayeeName = encodeURIComponent("Beast Earn Deposit");
-                const encodedTransactionRef = encodeURIComponent(`BEASTEARN_${Date.now()}`);
-                const encodedNote = encodeURIComponent("Deposit for Color Prediction Game");
-
-                return `upi://pay?pa=${encodedUpiId}&pn=${encodedPayeeName}&mc=0000&tid=${encodedTransactionRef}&tr=${encodedTransactionRef}&am=${encodedAmount}&cu=INR&tn=${encodedNote}`;
-            };
-
-            const handlePayRedirect = () => {
-                const upiLink = generateUpiLink();
-                if (upiLink) {
-                    window.location.href = upiLink;
-                    setMessage({ type: 'info', text: 'Redirecting to UPI app... Please complete payment there.' });
-                }
-            };
-
-            const handleManualConfirmation = async () => {
-                const amount = parseFloat(depositAmount);
+            const handleAmountSelect = (amount) => {
+                setDepositAmount(amount);
                 setMessage(null);
+            };
 
-                if (isNaN(amount) || amount < MIN_DEPOSIT_AMOUNT) {
-                    onError();
-                    setMessage({ type: 'error', text: `Please select a valid amount (minimum ₹${MIN_DEPOSIT_AMOUNT}).` });
+            const handleConfirmPayment = () => {
+                if (!depositAmount) {
+                    setMessage({ type: 'error', text: 'Please select an amount first.' });
                     return;
                 }
-
-                if (!paymentScreenshot) {
-                    onError();
-                    setMessage({ type: 'error', text: 'Please upload a valid payment screenshot.' });
-                    return;
-                }
-
-                try {
-                    await verifyPaymentScreenshot(paymentScreenshot);
-                    
-                    setBalance(prev => prev + amount);
-                    addDepositToHistory({
-                        amount: amount,
-                        timestamp: new Date().toISOString()
-                    });
-                    setMessage({ type: 'success', text: `₹${amount.toFixed(2)} added to your balance!` });
-                    setDepositAmount('');
-                    setPaymentScreenshot(null);
-                    setTimeout(() => {
-                        setMessage(null);
-                        navigateTo('gameSelection');
-                    }, 2500);
-                } catch (error) {
-                    onError();
-                    setMessage({ type: 'error', text: error.message });
-                }
+                // Navigate to the image extractor page with the selected amount
+                navigateTo('imageExtractor', { amount: depositAmount });
             };
 
             return (
                 <div className="max-w-md mx-auto bg-gradient-to-b from-black to-gray-900 min-h-screen text-white p-4">
-                    <div className="flex items-center gap-2 mb-6">
-                        <button onClick={() => navigateTo('gameSelection')} className="p-2 rounded-full bg-gray-800 bg-opacity-50">
-                            <ArrowLeft className="w-5 h-5 text-white" />
+                    <div className="flex items-center mb-6">
+                        <button 
+                            onClick={() => navigateTo('home')}
+                            className="text-yellow-400 hover:text-yellow-300"
+                        >
+                            ← Back
                         </button>
-                        <Logo />
-                        <h2 className="text-xl font-bold">Deposit</h2>
-                        <div className="ml-auto flex gap-2 items-center">
-                            <button
-                                onClick={() => navigateTo('history', { initialTab: 'deposit' })}
-                                className="px-3 py-1 bg-gray-800 bg-opacity-50 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
-                            >
-                                History
-                            </button>
-                            <GuideButton audioFile="deposite.mp3" />
-                        </div>
+                        <h1 className="text-2xl font-bold text-center flex-1">Deposit</h1>
                     </div>
 
                     <div className="bg-gray-800 bg-opacity-50 rounded-lg p-6 mb-4">
-                        {upiQrCodeUrl && (
-                            <div className="mb-4 text-center">
-                                <p className="text-sm font-semibold mb-2">Scan QR to Pay</p>
-                                <img src={upiQrCodeUrl} alt="UPI QR Code" className="w-40 h-40 mx-auto bg-white p-2 rounded-lg" />
-                                <p className="text-sm mt-2">UPI ID: <span className="font-bold text-yellow-300">{upiId}</span></p>
-                            </div>
-                        )}
-
-                        <label className="block text-sm font-semibold mb-2">Select Amount (₹)</label>
-                        <div className="grid grid-cols-3 gap-2 mb-4">
-                            {depositAmounts.map((amount) => (
+                        <h2 className="text-lg font-semibold mb-4 text-yellow-300">Select Amount</h2>
+                        <div className="grid grid-cols-3 gap-3 mb-4">
+                            {[10, 100, 200, 500, 1000, 2000].map((amount) => (
                                 <button
                                     key={amount}
-                                    onClick={() => setDepositAmount(amount.toString())}
+                                    onClick={() => handleAmountSelect(amount)}
                                     className={`p-3 rounded-lg font-bold transition-colors ${
-                                        depositAmount === amount.toString()
+                                        depositAmount === amount
                                             ? 'bg-yellow-400 text-black'
-                                            : 'bg-gray-700 bg-opacity-50 text-white hover:bg-gray-600'
+                                            : 'bg-gray-700 hover:bg-gray-600'
                                     }`}
                                 >
                                     ₹{amount}
@@ -976,34 +615,39 @@
                             ))}
                         </div>
 
+                        <div className="mb-6">
+                            <h3 className="text-sm font-semibold mb-2 text-yellow-300">UPI Payment Details</h3>
+                            <div className="bg-gray-900 rounded-lg p-4 text-center">
+                                <img 
+                                    src={upiQrCodeUrl} 
+                                    alt="UPI QR Code" 
+                                    className="w-48 h-48 mx-auto mb-3"
+                                />
+                                <p className="text-sm text-gray-300 mb-2">Scan QR code or use UPI ID:</p>
+                                <div className="flex items-center justify-center space-x-2">
+                                    <code className="bg-gray-800 px-3 py-1 rounded text-yellow-300">{upiId}</code>
+                                    <button 
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(upiId);
+                                            setMessage({ type: 'success', text: 'UPI ID copied to clipboard!' });
+                                        }}
+                                        className="text-yellow-400 hover:text-yellow-300"
+                                    >
+                                        Copy
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
                         <button
-                            onClick={handlePayRedirect}
-                            className="w-full bg-yellow-400 py-3 rounded-lg font-bold text-black hover:bg-yellow-500 transition-colors mb-3"
+                            onClick={handleConfirmPayment}
+                            className="w-full py-3 rounded-lg font-bold bg-yellow-400 text-black hover:bg-yellow-500 transition-colors"
                         >
-                            Pay to Deposit
+                            Confirm Payment
                         </button>
 
-                        <hr className="border-t border-gray-700 my-4" />
-
-                        {/* Screenshot Input with verification status */}
-                        <label htmlFor="payment-screenshot" className="block text-sm font-semibold mb-2">
-                            Upload Payment Screenshot
-                            {isVerifying && (
-                                <span className="ml-2 text-yellow-300">
-                                    <span className="animate-pulse">Verifying...</span>
-                                </span>
-                            )}
-                        </label>
-                        <input
-                            id="payment-screenshot"
-                            type="file"
-                            accept="image/png"
-                            onChange={handleFileChange}
-                            className="w-full text-sm text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-yellow-400 file:text-black hover:file:bg-yellow-500 mb-4"
-                        />
-
                         {message && (
-                            <div className={`p-3 rounded-lg mb-4 ${
+                            <div className={`p-3 rounded-lg mt-4 ${
                                 message.type === 'error' ? 'bg-red-500 bg-opacity-20 text-red-300' :
                                 message.type === 'success' ? 'bg-green-500 bg-opacity-20 text-green-300' :
                                 'bg-blue-500 bg-opacity-20 text-blue-300'
@@ -1011,17 +655,113 @@
                                 {message.text}
                             </div>
                         )}
+                    </div>
+                </div>
+            );
+        };
+
+        const ImageExtractorPage = ({ params, navigateTo, setBalance, addDepositToHistory, onError }) => {
+            const [paymentScreenshot, setPaymentScreenshot] = React.useState(null);
+            const [message, setMessage] = React.useState(null);
+            const [isVerifying, setIsVerifying] = React.useState(false);
+            const [extractionProgress, setExtractionProgress] = React.useState(0);
+            const [extractedInfo, setExtractedInfo] = React.useState(null);
+            const [previewUrl, setPreviewUrl] = React.useState(null);
+            const upiId = "bolt999@ibl";
+            const depositAmount = params?.amount || 0;
+
+            const handleFileChange = (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    if (file.type !== 'image/png') {
+                        setMessage({ type: 'error', text: 'Please upload a PNG image.' });
+                        return;
+                    }
+                    setPaymentScreenshot(file);
+                    setPreviewUrl(URL.createObjectURL(file));
+                    setMessage(null);
+                }
+            };
+
+            const handleManualConfirmation = async () => {
+                if (!paymentScreenshot) {
+                    setMessage({ type: 'error', text: 'Please upload a payment screenshot first.' });
+                    return;
+                }
+
+                try {
+                    const isValid = await verifyPaymentScreenshot(paymentScreenshot);
+                    if (isValid) {
+                        const amount = parseFloat(depositAmount);
+                        setBalance(prev => prev + amount);
+                        addDepositToHistory(amount);
+                        setMessage({ type: 'success', text: 'Payment verified successfully!' });
+                        setTimeout(() => navigateTo('home'), 2000);
+                    }
+                } catch (error) {
+                    setMessage({ type: 'error', text: error.message });
+                }
+            };
+
+            // ... rest of the image extraction code (enhanceImageForOCR, preprocessImage, verifyPaymentScreenshot) ...
+
+            return (
+                <div className="max-w-md mx-auto bg-gradient-to-b from-black to-gray-900 min-h-screen text-white p-4">
+                    <div className="flex items-center mb-6">
+                        <button 
+                            onClick={() => navigateTo('deposit')}
+                            className="text-yellow-400 hover:text-yellow-300"
+                        >
+                            ← Back
+                        </button>
+                        <h1 className="text-2xl font-bold text-center flex-1">Verify Payment</h1>
+                    </div>
+
+                    <div className="bg-gray-800 bg-opacity-50 rounded-lg p-6 mb-4">
+                        <h2 className="text-lg font-semibold mb-4 text-yellow-300">Upload Payment Screenshot</h2>
+                        <p className="text-sm text-gray-300 mb-4">
+                            Please upload a screenshot of your payment confirmation showing:
+                            <br />• UPI ID: {upiId}
+                            <br />• Amount: ₹{depositAmount}
+                            <br />• Payment Status
+                        </p>
+
+                        <div className="mb-4">
+                            <input
+                                type="file"
+                                accept="image/png"
+                                onChange={handleFileChange}
+                                className="hidden"
+                                id="screenshot-upload"
+                            />
+                            <label
+                                htmlFor="screenshot-upload"
+                                className="block w-full p-4 border-2 border-dashed border-gray-600 rounded-lg text-center cursor-pointer hover:border-yellow-400 transition-colors"
+                            >
+                                {paymentScreenshot ? 'Change Screenshot' : 'Choose Screenshot (PNG only)'}
+                            </label>
+                        </div>
+
+                        {previewUrl && (
+                            <div className="mb-4">
+                                <img
+                                    src={previewUrl}
+                                    alt="Payment Screenshot"
+                                    className="w-full h-auto rounded-lg border border-gray-700"
+                                />
+                            </div>
+                        )}
 
                         <button
                             onClick={handleManualConfirmation}
-                            disabled={isVerifying}
+                            disabled={isVerifying || !paymentScreenshot}
                             className={`w-full py-3 rounded-lg font-bold transition-colors ${
-                                isVerifying
+                                isVerifying || !paymentScreenshot
                                     ? 'bg-gray-600 cursor-not-allowed'
                                     : 'bg-yellow-400 text-black hover:bg-yellow-500'
                             }`}
                         >
-                            {isVerifying ? 'Verifying...' : 'Confirm Payment (I have Paid)'}
+                            {isVerifying ? 'Verifying...' : 'Verify Payment'}
                         </button>
 
                         {/* Progress bar */}
@@ -1108,7 +848,7 @@
                         )}
 
                         {message && (
-                            <div className={`p-3 rounded-lg mb-4 ${
+                            <div className={`p-3 rounded-lg mt-4 ${
                                 message.type === 'error' ? 'bg-red-500 bg-opacity-20 text-red-300' :
                                 message.type === 'success' ? 'bg-green-500 bg-opacity-20 text-green-300' :
                                 'bg-blue-500 bg-opacity-20 text-blue-300'
@@ -1116,28 +856,6 @@
                                 {message.text}
                             </div>
                         )}
-                    </div>
-
-                    <div className="bg-gray-800 bg-opacity-30 rounded-lg p-4">
-                        <h3 className="text-lg font-semibold mb-2 text-yellow-300">Deposit Instructions:</h3>
-                        <ul className="text-sm list-disc pl-5 space-y-2 text-gray-300">
-                            <li>Select the amount you wish to deposit from the available options.</li>
-                            <li>Scan the QR code or click **"Pay to Deposit"** to open your UPI app.</li>
-                            <li>Complete the payment using your preferred UPI app to the UPI ID: <span className="font-bold text-yellow-300">{upiId}</span></li>
-                            <li>**IMPORTANT**: After successful payment, take a screenshot of your payment confirmation.</li>
-                            <li>The screenshot must clearly show:</li>
-                            <ul className="list-disc pl-5 mt-1 space-y-1">
-                                <li>The payment amount</li>
-                                <li>The UPI ID (bolt999@ibl)</li>
-                                <li>Payment status (successful/completed)</li>
-                                <li>Current date and time</li>
-                            </ul>
-                            <li>**Note**: Only PNG images are accepted.</li>
-                            <li>Maximum file size: 5MB</li>
-                            <li>Click **"Confirm Payment (I have Paid)"** to add the amount to your balance.</li>
-                            <li>Your balance will update immediately after verification.</li>
-                            <li>Available deposit amounts: ₹200, ₹500, ₹1000, ₹2000, ₹5000, ₹10000</li>
-                        </ul>
                     </div>
                 </div>
             );
