@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Verification</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tesseract.js for OCR -->
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles for the Black and Gold theme */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #121212;
+            color: #E0E0E0;
+        }
+        .gold-text { color: #FFD700; }
+        .btn-gold {
+            background-color: #FFD700;
+            color: #121212;
+            font-weight: 600;
+            padding: 12px 24px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            border: 2px solid #FFD700;
+        }
+        .btn-gold:hover {
+            background-color: #121212;
+            color: #FFD700;
+        }
+        .btn-outline-gold {
+            background-color: transparent;
+            color: #FFD700;
+            font-weight: 600;
+            padding: 10px 24px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            border: 2px solid #FFD700;
+        }
+        .btn-outline-gold:disabled {
+            border-color: #4a4a4a;
+            color: #4a4a4a;
+            cursor: not-allowed;
+        }
+        .btn-outline-gold:not(:disabled):hover {
+             background-color: #FFD700;
+             color: #121212;
+        }
+        .card {
+            background-color: #1E1E1E;
+            border: 1px solid #333;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .loader {
+            border: 4px solid #444;
+            border-top: 4px solid #FFD700;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        input[type="file"] { display: none; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+
+    <div class="card w-full max-w-md p-6 sm:p-8 m-4">
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-bold gold-text">Verify Payment</h1>
+            <p class="text-gray-400 mt-2">Upload your payment screenshot to confirm the transaction.</p>
+        </div>
+
+        <div id="image-preview-container" class="w-full h-48 bg-gray-800 rounded-lg flex items-center justify-center mb-6 border-2 border-dashed border-gray-600 hidden">
+             <img id="image-preview" src="" alt="Image Preview" class="max-h-full max-w-full rounded-lg hidden">
+             <span id="image-placeholder" class="text-gray-500">Your image will appear here</span>
+        </div>
+
+        <div id="status-message" class="text-center p-4 rounded-lg mb-6 hidden"></div>
+
+        <div class="flex flex-col items-center space-y-4">
+            <label id="upload-label" for="image-upload" class="btn-gold cursor-pointer w-full text-center">
+                Choose Image
+            </label>
+            <input id="image-upload" type="file" accept="image/*">
+            <button id="verify-btn" class="btn-outline-gold w-full" disabled>Verify</button>
+            <button id="resubmit-btn" class="btn-gold w-full text-center hidden">Re-submit</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const imageUpload = document.getElementById('image-upload');
+        const uploadLabel = document.getElementById('upload-label');
+        const verifyBtn = document.getElementById('verify-btn');
+        const resubmitBtn = document.getElementById('resubmit-btn');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+        const imagePreview = document.getElementById('image-preview');
+        const imagePlaceholder = document.getElementById('image-placeholder');
+        const statusMessage = document.getElementById('status-message');
+        let selectedFile = null;
+
+        imageUpload.addEventListener('change', (event) => {
+            selectedFile = event.target.files[0];
+            if (selectedFile) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreview.src = e.target.result;
+                    imagePreview.classList.remove('hidden');
+                    imagePlaceholder.classList.add('hidden');
+                    imagePreviewContainer.classList.remove('hidden');
+                };
+                reader.readAsDataURL(selectedFile);
+                verifyBtn.disabled = false;
+            }
+        });
+
+        verifyBtn.addEventListener('click', async () => {
+            if (!selectedFile) {
+                showStatus('Please select an image first.', 'error');
+                return;
+            }
+            let worker;
+            showLoadingState(true, 'Initializing OCR...');
+            verifyBtn.disabled = true;
+
+            try {
+                worker = await Tesseract.createWorker('eng', 1, { logger: m => handleProgress(m) });
+                const { data: { text } } = await worker.recognize(selectedFile);
+                processExtractedText(text);
+            } catch (error) {
+                console.error('Processing Error:', error);
+                showStatus('Could not process the image. Please try a clearer screenshot.', 'error');
+            } finally {
+                if (worker) await worker.terminate();
+                showLoadingState(false);
+                toggleButtons();
+            }
+        });
+
+        resubmitBtn.addEventListener('click', () => resetUI());
+
+        function extractDateTime(text) {
+             const dateTimeRegex = /(\d{1,2}\s+\w{3,}\s+\d{4},?\s*\d{1,2}:\d{2}(?::\d{2})?\s*(?:am|pm)?)/i;
+             const match = text.replace(/\n/g, ' ').match(dateTimeRegex);
+             if (match && match[0]) {
+                 try { return new Date(match[0]); } catch (e) { return null; }
+             }
+             return null;
+        }
+
+        function processExtractedText(text) {
+            const upiId = 'bolt999@ibl';
+            const lowerCaseText = text.toLowerCase();
+
+            // 1. Check UPI ID
+            if (!lowerCaseText.includes(upiId)) {
+                showStatus(`<strong>Payment Failed:</strong> The UPI ID '<span class="gold-text">${upiId}</span>' was not found.`, 'error');
+                return;
+            }
+
+            // 2. Check Date/Time
+            const paymentDate = extractDateTime(text);
+            if (!paymentDate || isNaN(paymentDate.getTime())) {
+                showStatus("<strong>Payment Failed:</strong> Could not detect a valid date and time in the screenshot.", 'error');
+                return;
+            }
+            const now = new Date();
+            // *** UPDATED: Changed from 2 minutes to 5 minutes ***
+            if ((now.getTime() - paymentDate.getTime()) > 5 * 60 * 1000) {
+                showStatus(`<strong>Payment Failed:</strong> Payment is older than 5 minutes.`, 'error');
+                return;
+            }
+            
+            // 3. Extract UTR
+            const utrRegex = /(?:utr|transaction|order)\s*(?:id|no|number)?:?\s*([a-zA-Z0-9]{12,})/i;
+            const utrMatch = text.match(utrRegex);
+            const utr = utrMatch ? utrMatch[1] : null;
+
+            if (!utr) {
+                showStatus(`<strong>Payment Failed:</strong> Could not find a valid UTR, Transaction, or Order ID.`, 'error');
+                return;
+            }
+            
+            // 4. Check UTR in localStorage
+            showLoadingState(true, 'Checking payment history...');
+            const usedUTRs = JSON.parse(localStorage.getItem('usedUTRs')) || [];
+
+            if (usedUTRs.includes(utr)) {
+                showStatus(`<strong>Payment Failed:</strong> This payment (UTR: ${utr}) has already been used on this device.`, 'error');
+                return;
+            }
+            
+            // 5. Store new UTR in localStorage and show success
+            usedUTRs.push(utr);
+            localStorage.setItem('usedUTRs', JSON.stringify(usedUTRs));
+
+            const amountRegex = /(?:₹|rs\.?|inr|amount|paid)\s*([\d,]+(?:\.\d{1,2})?)/i;
+            const amountMatch = text.replace(/,/g, '').match(amountRegex);
+            const amount = amountMatch ? `₹${amountMatch[1]}` : 'Not Found';
+            
+            const successMessage = `
+                <div class="font-semibold text-lg text-left">Payment Successful!</div>
+                <div class="text-left mt-3 space-y-1">
+                    <p>Amount: <span class="font-bold gold-text">${amount}</span></p>
+                    <p>UTR/Ref No: <span class="font-bold gold-text">${utr}</span></p>
+                </div>
+                <div class="mt-3 text-left">Your deposit has been successfully added to your balance.</div>
+            `;
+            showStatus(successMessage, 'success');
+        }
+        
+        function handleProgress(m) {
+            let statusText = m.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            let progress = (m.progress && m.progress < 1) ? `(${Math.round(m.progress * 100)}%)` : '';
+            showLoadingState(true, `${statusText} ${progress}`);
+        }
+
+        function resetUI() {
+            selectedFile = null;
+            imageUpload.value = ''; 
+            imagePreviewContainer.classList.add('hidden');
+            imagePreview.classList.add('hidden');
+            imagePlaceholder.classList.remove('hidden');
+            imagePreview.src = '';
+            statusMessage.classList.add('hidden');
+            uploadLabel.classList.remove('hidden');
+            verifyBtn.classList.remove('hidden');
+            verifyBtn.disabled = true;
+            resubmitBtn.classList.add('hidden');
+        }
+
+        function toggleButtons() {
+            uploadLabel.classList.add('hidden');
+            verifyBtn.classList.add('hidden');
+            resubmitBtn.classList.remove('hidden');
+        }
+
+        function showStatus(messageHTML, type) {
+            statusMessage.innerHTML = messageHTML;
+            statusMessage.className = 'p-4 rounded-lg mb-6 transition-all duration-300';
+            if (type === 'success') statusMessage.classList.add('bg-green-900', 'text-green-200', 'text-left');
+            else if (type === 'error') statusMessage.classList.add('bg-red-900', 'text-red-200', 'text-center');
+            else statusMessage.classList.add('bg-gray-700', 'text-gray-300', 'text-center');
+        }
+        
+        function showLoadingState(isLoading, message = '') {
+            if (isLoading) {
+                const loaderHtml = `<div class="flex flex-col items-center justify-center"><div class="loader"></div><p class="mt-3 text-md font-semibold">${message}</p></div>`;
+                showStatus(loaderHtml, 'loading');
+                verifyBtn.innerHTML = 'Verifying...';
+            } else {
+                verifyBtn.disabled = false;
+                verifyBtn.innerHTML = 'Verify';
+            }
+        }
+    </script>
+</body>
+</html>
+
