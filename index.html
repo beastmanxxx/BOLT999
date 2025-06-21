@@ -2029,22 +2029,20 @@
                         {tab==='withdrawals' && (
                             <div className="mt-6 flex flex-col gap-3">
                                 <h2 className="text-xl font-bold mb-2">Manage Withdrawals</h2>
-                                {withdrawals.length === 0 ? (
+                                {(withdrawals.filter(w => w.status === 'Pending')).length === 0 ? (
                                     <p className="text-center opacity-70">No withdrawal requests yet.</p>
                                 ) : (
-                                    withdrawals.map((w,i) => (
+                                    withdrawals.filter(w => w.status === 'Pending').map((w,i) => (
                                         <div key={i} className="bg-gray-900 rounded-lg p-3 shadow flex flex-col gap-2 mb-2">
                                             <div className="flex justify-between items-center">
                                                 <span className="text-xs font-semibold break-all">{w.upiId}</span>
                                                 <span className="text-xs px-2 py-1 rounded bg-gray-800">₹{w.amount}</span>
-                                                <span className={`text-xs px-2 py-1 rounded ${w.status === 'Completed' ? 'bg-green-500 bg-opacity-20 text-green-300' : w.status === 'Rejected' ? 'bg-red-500 bg-opacity-20 text-red-300' : 'bg-yellow-400 bg-opacity-20 text-yellow-800'}`}>{w.status || 'Pending'}</span>
+                                                <span className={`text-xs px-2 py-1 rounded bg-yellow-400 bg-opacity-20 text-yellow-800`}>{w.status || 'Pending'}</span>
                                             </div>
-                                            {w.status === 'Pending' && (
-                                                <div className="flex gap-2 mt-2">
-                                                    <button onClick={()=>handleAdminAction(()=>window.approveWithdrawal(w, i), 'Withdrawal approved!')} className="flex-1 px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs">Approve</button>
-                                                    <button onClick={()=>handleAdminAction(()=>window.rejectWithdrawal(w, i), 'Withdrawal rejected!')} className="flex-1 px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs">Reject</button>
-                                                </div>
-                                            )}
+                                            <div className="flex gap-2 mt-2">
+                                                <button onClick={()=>handleAdminAction(()=>window.approveWithdrawal(w, i), 'Withdrawal approved!')} className="flex-1 px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs">Approve</button>
+                                                <button onClick={()=>handleAdminAction(()=>window.rejectWithdrawal(w, i), 'Withdrawal rejected!')} className="flex-1 px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs">Reject</button>
+                                            </div>
                                         </div>
                                     ))
                                 )}
@@ -2466,7 +2464,7 @@
                                 const d = doc.data().depositHistory || [];
                                 d.forEach(dep => { if (dep.status) deposits.push({ ...dep, user: doc.id }); });
                                 const w = doc.data().withdrawHistory || [];
-                                w.forEach(wd => { if (wd.status) withdrawals.push({ ...wd, user: doc.id }); });
+                                w.forEach(wd => { if (wd.status === 'Pending') withdrawals.push({ ...wd, user: doc.id }); });
                             });
                             setAllDeposits(deposits);
                             setAllWithdrawals(withdrawals);
