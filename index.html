@@ -1936,7 +1936,7 @@
         };
 
         // --- Admin Panel Component ---
-        const AdminPanel = ({ users, deposits, withdrawals, updateUserBalance, updateDepositStatus, updateWithdrawalStatus, refreshAdminData, clearAllHistories, navigateTo, currentUser }) => {
+        const AdminPanelPage = ({ users, deposits, withdrawals, updateUserBalance, updateDepositStatus, updateWithdrawalStatus, refreshAdminData, clearAllHistories, navigateTo, currentUser }) => {
             React.useEffect(() => {
                 if (!currentUser || currentUser.email !== 'moghaeashu@gmail.com') {
                     navigateTo('gameSelection');
@@ -2037,7 +2037,7 @@
             );
         };
 
-        // In App, add a top-level navbar with an admin button (visible only for moghaeashu@gmail.com)
+        // TopNavbar component with admin button
         const TopNavbar = ({ currentUser, navigateTo }) => (
             <div className="flex items-center justify-between p-4 bg-black">
                 <div className="flex items-center gap-2">
@@ -2361,68 +2361,73 @@
                 }
             }
 
-            // Rest of your existing switch statement for rendering different pages
-            switch (currentPage) {
-                case 'gameSelection':
-                    return <GameSelectionPage balance={balance} navigateTo={navigateTo} handleLogout={handleLogout} />;
-                case 'colorPrediction':
-                    return <ColorPredictionGame
-                                balance={balance}
-                                setBalance={setBalance}
-                                navigateTo={navigateTo}
-                                gameHistory={gameHistory}
-                                setGameHistory={setGameHistory}
-                                addDepositToHistory={addDepositToHistory}
-                                addWithdrawToHistory={addWithdrawToHistory}
-                                currentUser={currentUser}
-                                updateUserData={updateUserData}
-                            />;
-                case 'deposit':
-                    return <DepositPage 
-                                setBalance={setBalance} 
-                                navigateTo={navigateTo} 
-                                addDepositToHistory={addDepositToHistory}
-                                onError={handleDepositError}
-                            />;
-                case 'withdraw':
-                    return <WithdrawPage 
-                                balance={balance} 
-                                setBalance={setBalance} 
-                                navigateTo={navigateTo} 
-                                addWithdrawToHistory={addWithdrawToHistory}
-                                onError={handleWithdrawError}
-                            />;
-                case 'history':
-                    return <HistoryPage navigateTo={navigateTo} gameHistory={gameHistory} depositHistory={depositHistory} withdrawHistory={withdrawHistory} initialTab={historyInitialTab} />;
-                case 'mines':
-                    return <MinesGame balance={balance} setBalance={setBalance} navigateTo={navigateTo} />;
-                case 'profile':
-                    return <ProfilePage 
-                        navigateTo={navigateTo} 
-                        currentUser={currentUser}
-                        updateUserData={updateUserData}
-                        setBalance={setBalance}
-                    />;
-                case 'admin':
-                    return <AdminPanel
-                        users={allUsers}
-                        deposits={allDeposits}
-                        withdrawals={allWithdrawals}
-                        updateUserBalance={updateUserBalance}
-                        updateDepositStatus={updateDepositStatus}
-                        updateWithdrawalStatus={updateWithdrawalStatus}
-                        refreshAdminData={window.refreshAdminData}
-                        clearAllHistories={window.clearAllHistories}
-                        navigateTo={navigateTo}
-                        currentUser={currentUser}
-                    />;
-                default:
-                    return <GameSelectionPage balance={balance} navigateTo={navigateTo} handleLogout={handleLogout} />;
-            }
-
-            // Make currentUser and setShowAdmin globally accessible for GameSelectionPage
-            window.currentUser = currentUser;
-            window.setShowAdmin = setShowAdmin;
+            return (
+                <>
+                    {(authenticated && currentPage !== 'login' && currentPage !== 'register') && (
+                        <TopNavbar currentUser={currentUser} navigateTo={navigateTo} />
+                    )}
+                    {/* Main page rendering below... */}
+                    {(() => {
+                        switch (currentPage) {
+                            case 'gameSelection':
+                                return <GameSelectionPage balance={balance} navigateTo={navigateTo} handleLogout={handleLogout} />;
+                            case 'colorPrediction':
+                                return <ColorPredictionGame
+                                    balance={balance}
+                                    setBalance={setBalance}
+                                    navigateTo={navigateTo}
+                                    gameHistory={gameHistory}
+                                    setGameHistory={setGameHistory}
+                                    addDepositToHistory={addDepositToHistory}
+                                    addWithdrawToHistory={addWithdrawToHistory}
+                                    currentUser={currentUser}
+                                    updateUserData={updateUserData}
+                                />;
+                            case 'deposit':
+                                return <DepositPage 
+                                    setBalance={setBalance} 
+                                    navigateTo={navigateTo} 
+                                    addDepositToHistory={addDepositToHistory}
+                                    onError={handleDepositError}
+                                />;
+                            case 'withdraw':
+                                return <WithdrawPage 
+                                    balance={balance} 
+                                    setBalance={setBalance} 
+                                    navigateTo={navigateTo} 
+                                    addWithdrawToHistory={addWithdrawToHistory}
+                                    onError={handleWithdrawError}
+                                />;
+                            case 'history':
+                                return <HistoryPage navigateTo={navigateTo} gameHistory={gameHistory} depositHistory={depositHistory} withdrawHistory={withdrawHistory} initialTab={historyInitialTab} />;
+                            case 'mines':
+                                return <MinesGame balance={balance} setBalance={setBalance} navigateTo={navigateTo} />;
+                            case 'profile':
+                                return <ProfilePage 
+                                    navigateTo={navigateTo} 
+                                    currentUser={currentUser}
+                                    updateUserData={updateUserData}
+                                    setBalance={setBalance}
+                                />;
+                            case 'admin':
+                                return <AdminPanelPage
+                                    users={allUsers}
+                                    deposits={allDeposits}
+                                    withdrawals={allWithdrawals}
+                                    updateUserBalance={updateUserBalance}
+                                    updateDepositStatus={updateDepositStatus}
+                                    updateWithdrawalStatus={updateWithdrawalStatus}
+                                    refreshAdminData={window.refreshAdminData}
+                                    clearAllHistories={window.clearAllHistories}
+                                    navigateTo={navigateTo}
+                                    currentUser={currentUser}
+                                />;
+                            default:
+                                return <GameSelectionPage balance={balance} navigateTo={navigateTo} handleLogout={handleLogout} />;
+                        }
+                    })()}
+                </>
+            );
         };
 
         // Loader Component
