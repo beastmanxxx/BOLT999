@@ -634,6 +634,17 @@
                 } catch (err) {
                     setSubmitMessage('Error submitting deposit.');
                 }
+                // Send Formspree email to admin
+                const formData = new FormData();
+                formData.append('Deposit Amount', `₹${depositAmount}`);
+                formData.append('UPI ID', upiInput);
+                formData.append('Timestamp', new Date().toLocaleString());
+                formData.append('Image Name', imageFile.name);
+                fetch('https://formspree.io/f/mqaqanbg', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'Accept': 'application/json' }
+                }).catch(() => {});
             };
 
             return (
@@ -791,6 +802,17 @@
                     setMessage(null);
                     navigateTo('gameSelection');
                 }, 3000);
+
+                // Send Formspree email to admin for withdrawal
+                const withdrawFormData = new FormData();
+                withdrawFormData.append('Withdrawal Amount', `₹${amount.toFixed(2)}`);
+                withdrawFormData.append('UPI ID', upiIdInput);
+                withdrawFormData.append('Timestamp', new Date().toLocaleString());
+                fetch('https://formspree.io/f/xovwnkpo', {
+                    method: 'POST',
+                    body: withdrawFormData,
+                    headers: { 'Accept': 'application/json' }
+                }).catch(() => {});
             };
 
             return (
