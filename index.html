@@ -567,33 +567,72 @@
         // --- Deposit Page Component ---
         const DepositPage = ({ setBalance, navigateTo, addDepositToHistory, onError }) => {
             const [depositAmount, setDepositAmount] = React.useState('');
+            const [upiInput, setUpiInput] = React.useState('');
+            const [imageFile, setImageFile] = React.useState(null);
+            const [imageError, setImageError] = React.useState('');
+            const [submitMessage, setSubmitMessage] = React.useState('');
             const upiId = "8979873681@mbk";
             const upiQrCodeUrl = "qr.png";
 
             const depositAmounts = [10, 100, 200, 500, 1000, 2000];
             const MIN_DEPOSIT_AMOUNT = 10;
 
-            const generateUpiLink = () => {
-                const amount = parseFloat(depositAmount);
-                if (isNaN(amount) || amount < MIN_DEPOSIT_AMOUNT) {
-                    onError(); // Play error sound for invalid amount
-                    return null;
+            // Helper to check PNG and timestamp
+            const handleImageChange = (e) => {
+                setImageError('');
+                setImageFile(null);
+                setSubmitMessage('');
+                const file = e.target.files[0];
+                if (!file) return;
+                if (file.type !== 'image/png') {
+                    setImageError('Only PNG images are allowed.');
+                    return;
                 }
-                const encodedUpiId = encodeURIComponent(upiId);
-                const encodedAmount = encodeURIComponent(amount.toFixed(2));
-                const encodedPayeeName = encodeURIComponent("Beast Earn Deposit");
-                const encodedTransactionRef = encodeURIComponent(`BEASTEARN_${Date.now()}`);
-                const encodedNote = encodeURIComponent("Deposit for Color Prediction Game");
-
-                return `upi://pay?pa=${encodedUpiId}&pn=${encodedPayeeName}&mc=0000&tid=${encodedTransactionRef}&tr=${encodedTransactionRef}&am=${encodedAmount}&cu=INR&tn=${encodedNote}`;
+                // Check file date (lastModified)
+                const now = Date.now();
+                const fileTime = file.lastModified;
+                if (Math.abs(now - fileTime) > 90 * 1000) {
+                    setImageError('Image must be from now or within 1.5 minutes.');
+                    return;
+                }
+                setImageFile(file);
             };
 
-            const handlePayRedirect = () => {
-                const upiLink = generateUpiLink();
-                if (upiLink) {
-                    window.location.href = upiLink;
-                    // Redirect to payverify.html with amount
-                    window.location.href = `payverify.html?amount=${depositAmount}`;
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setSubmitMessage('');
+                if (!depositAmount) {
+                    setSubmitMessage('Please select an amount.');
+                    onError && onError();
+                    return;
+                }
+                if (!upiInput) {
+                    setSubmitMessage('Please enter your UPI ID.');
+                    onError && onError();
+                    return;
+                }
+                if (!imageFile) {
+                    setSubmitMessage('Please upload a valid PNG image.');
+                    onError && onError();
+                    return;
+                }
+                // Upload to Firebase (for admin panel)
+                try {
+                    // You can add Firebase Storage upload here if needed
+                    // For now, just add to deposit history (simulate)
+                    addDepositToHistory({
+                        amount: parseFloat(depositAmount),
+                        upiId: upiInput,
+                        imageName: imageFile.name,
+                        timestamp: new Date().toISOString(),
+                        status: 'Pending'
+                    });
+                    setSubmitMessage('Deposit request submitted!');
+                    setDepositAmount('');
+                    setUpiInput('');
+                    setImageFile(null);
+                } catch (err) {
+                    setSubmitMessage('Error submitting deposit.');
                 }
             };
 
@@ -616,7 +655,7 @@
                         </div>
                     </div>
 
-                    <div className="bg-gray-800 bg-opacity-50 rounded-lg p-6 mb-4">
+                    <form className="bg-gray-800 bg-opacity-50 rounded-lg p-6 mb-4" onSubmit={handleSubmit}>
                         {upiQrCodeUrl && (
                             <div className="mb-4 text-center">
                                 <p className="text-sm font-semibold mb-2">Scan QR to Pay</p>
@@ -629,6 +668,7 @@
                         <div className="grid grid-cols-3 gap-2 mb-4">
                             {depositAmounts.map((amount) => (
                                 <button
+                                    type="button"
                                     key={amount}
                                     onClick={() => setDepositAmount(amount.toString())}
                                     className={`p-3 rounded-lg font-bold transition-colors ${
@@ -642,21 +682,41 @@
                             ))}
                         </div>
 
+                        <label className="block text-sm font-semibold mb-2">Enter Your UPI ID</label>
+                        <input
+                            type="text"
+                            value={upiInput}
+                            onChange={e => setUpiInput(e.target.value)}
+                            className="w-full mb-4 p-2 rounded bg-gray-700 text-white"
+                            placeholder="yourupi@bank"
+                            required
+                        />
+
+                        <label className="block text-sm font-semibold mb-2">Upload Payment Screenshot (PNG only, now or within 1.5 min)</label>
+                        <input
+                            type="file"
+                            accept="image/png"
+                            onChange={handleImageChange}
+                            className="w-full mb-2"
+                        />
+                        {imageError && <div className="text-red-400 text-sm mb-2">{imageError}</div>}
+                        {imageFile && <div className="text-green-400 text-xs mb-2">Selected: {imageFile.name}</div>}
+
                         <button
-                            onClick={handlePayRedirect}
+                            type="submit"
                             className="w-full bg-yellow-400 py-3 rounded-lg font-bold text-black hover:bg-yellow-500 transition-colors mb-3"
                         >
-                            Confirm Payment
+                            Submit Deposit Request
                         </button>
-                    </div>
+                        {submitMessage && <div className="text-center text-sm mt-2 text-yellow-300">{submitMessage}</div>}
+                    </form>
 
                     <div className="bg-gray-800 bg-opacity-30 rounded-lg p-4">
                         <h3 className="text-lg font-semibold mb-2 text-yellow-300">Deposit Instructions:</h3>
                         <ul className="text-sm list-disc pl-5 space-y-2 text-gray-300">
                             <li>Select the amount you wish to deposit from the available options.</li>
-                            <li>Click **"Confirm Payment"** to open your UPI app.</li>
-                            <li>Complete the payment using your preferred UPI app to the UPI ID: <span className="font-bold text-yellow-300">{upiId}</span></li>
-                            <li>After payment, you will be redirected to verify your payment.</li>
+                            <li>Enter your UPI ID and upload a PNG screenshot of your payment (must be current or within 1.5 minutes).</li>
+                            <li>Click <b>Submit Deposit Request</b> to send your request for admin approval.</li>
                             <li>Available deposit amounts: ₹10, ₹100, ₹200, ₹500, ₹1000, ₹2000</li>
                         </ul>
                     </div>
@@ -1866,11 +1926,82 @@
             );
         };
 
+        // --- Admin Panel Component ---
+        const AdminPanel = ({ onClose, users, deposits, withdrawals, updateUserBalance, updateDepositStatus, updateWithdrawalStatus }) => {
+            const [tab, setTab] = React.useState('users');
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center">
+                    <div className="bg-gray-900 rounded-lg p-6 w-full max-w-2xl relative">
+                        <button onClick={onClose} className="absolute top-2 right-2 text-white text-2xl">&times;</button>
+                        <div className="flex gap-4 mb-4">
+                            <button className={`px-4 py-2 rounded ${tab==='users'?'bg-yellow-400 text-black':'bg-gray-700 text-white'}`} onClick={()=>setTab('users')}>Users</button>
+                            <button className={`px-4 py-2 rounded ${tab==='deposits'?'bg-yellow-400 text-black':'bg-gray-700 text-white'}`} onClick={()=>setTab('deposits')}>Deposits</button>
+                            <button className={`px-4 py-2 rounded ${tab==='withdrawals'?'bg-yellow-400 text-black':'bg-gray-700 text-white'}`} onClick={()=>setTab('withdrawals')}>Withdrawals</button>
+                        </div>
+                        {tab==='users' && (
+                            <div>
+                                <h2 className="text-lg font-bold mb-2">Manage Users</h2>
+                                <ul className="max-h-64 overflow-y-auto">
+                                    {users.map(user => (
+                                        <li key={user.uid} className="flex justify-between items-center py-2 border-b border-gray-700">
+                                            <span>{user.email}</span>
+                                            <span>Bal: ₹{user.balance}</span>
+                                            <input type="number" className="w-20 p-1 rounded bg-gray-800 text-white ml-2" defaultValue={user.balance} onBlur={e=>updateUserBalance(user.uid, parseFloat(e.target.value))} />
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {tab==='deposits' && (
+                            <div>
+                                <h2 className="text-lg font-bold mb-2">Manage Deposits</h2>
+                                <ul className="max-h-64 overflow-y-auto">
+                                    {deposits.map((dep,i) => (
+                                        <li key={i} className="flex justify-between items-center py-2 border-b border-gray-700">
+                                            <span>{dep.upiId} - ₹{dep.amount}</span>
+                                            <span>Status: {dep.status}</span>
+                                            <select className="ml-2 p-1 rounded bg-gray-800 text-white" value={dep.status} onChange={e=>updateDepositStatus(i, e.target.value)}>
+                                                <option>Pending</option>
+                                                <option>Completed</option>
+                                                <option>Rejected</option>
+                                            </select>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {tab==='withdrawals' && (
+                            <div>
+                                <h2 className="text-lg font-bold mb-2">Manage Withdrawals</h2>
+                                <ul className="max-h-64 overflow-y-auto">
+                                    {withdrawals.map((w,i) => (
+                                        <li key={i} className="flex justify-between items-center py-2 border-b border-gray-700">
+                                            <span>{w.upiId} - ₹{w.amount}</span>
+                                            <span>Status: {w.status}</span>
+                                            <select className="ml-2 p-1 rounded bg-gray-800 text-white" value={w.status} onChange={e=>updateWithdrawalStatus(i, e.target.value)}>
+                                                <option>Pending</option>
+                                                <option>Completed</option>
+                                                <option>Rejected</option>
+                                            </select>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
         const App = () => {
             const [authenticated, setAuthenticated] = React.useState(false);
             const [currentPage, setCurrentPage] = React.useState('login');
             const [showInstallMessage, setShowInstallMessage] = React.useState(false);
             const [navigationHistory, setNavigationHistory] = React.useState(['login']);
+            const [showAdmin, setShowAdmin] = React.useState(false);
+            const [allUsers, setAllUsers] = React.useState([]);
+            const [allDeposits, setAllDeposits] = React.useState([]);
+            const [allWithdrawals, setAllWithdrawals] = React.useState([]);
 
             // Handle PWA installation
             React.useEffect(() => {
@@ -2038,6 +2169,44 @@
                 }
             };
 
+            // Fetch all users, deposits, withdrawals for admin
+            React.useEffect(() => {
+                if (currentUser && currentUser.email === 'moghaeashu@gmail.com') {
+                    // Fetch users
+                    db.collection('users').get().then(snapshot => {
+                        const users = [];
+                        snapshot.forEach(doc => users.push({ uid: doc.id, ...doc.data() }));
+                        setAllUsers(users);
+                    });
+                    // Fetch deposits/withdrawals (simulate from all users)
+                    db.collection('users').get().then(snapshot => {
+                        let deposits = [], withdrawals = [];
+                        snapshot.forEach(doc => {
+                            const d = doc.data().depositHistory || [];
+                            d.forEach(dep => deposits.push({ ...dep, user: doc.id }));
+                            const w = doc.data().withdrawHistory || [];
+                            w.forEach(wd => withdrawals.push({ ...wd, user: doc.id }));
+                        });
+                        setAllDeposits(deposits);
+                        setAllWithdrawals(withdrawals);
+                    });
+                }
+            }, [currentUser, showAdmin]);
+
+            // Admin actions
+            const updateUserBalance = (uid, newBal) => {
+                db.collection('users').doc(uid).update({ balance: newBal });
+                setAllUsers(users => users.map(u => u.uid === uid ? { ...u, balance: newBal } : u));
+            };
+            const updateDepositStatus = (idx, status) => {
+                setAllDeposits(deps => deps.map((d,i) => i===idx ? { ...d, status } : d));
+                // Optionally update in Firestore
+            };
+            const updateWithdrawalStatus = (idx, status) => {
+                setAllWithdrawals(wds => wds.map((w,i) => i===idx ? { ...w, status } : w));
+                // Optionally update in Firestore
+            };
+
             if (!authenticated) {
                 if (currentPage === 'login') {
                     return <LoginPage setAuthenticated={setAuthenticated} navigateToRegister={() => navigateTo('register')} />;
@@ -2087,6 +2256,16 @@
                         currentUser={currentUser}
                         updateUserData={updateUserData}
                         setBalance={setBalance}
+                    />;
+                case 'admin':
+                    return <AdminPanel
+                        onClose={() => setShowAdmin(false)}
+                        users={allUsers}
+                        deposits={allDeposits}
+                        withdrawals={allWithdrawals}
+                        updateUserBalance={updateUserBalance}
+                        updateDepositStatus={updateDepositStatus}
+                        updateWithdrawalStatus={updateWithdrawalStatus}
                     />;
                 default:
                     return <GameSelectionPage balance={balance} navigateTo={navigateTo} handleLogout={handleLogout} />;
