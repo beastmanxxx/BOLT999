@@ -505,12 +505,12 @@
                                         {depositHistory.slice(0, 10).map((deposit, index) => (
                                             <div key={index} className="flex items-center justify-between bg-black bg-opacity-20 rounded-lg p-3">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                                    <div className="text-sm font-bold text-green-400">+ ₹{deposit.amount.toFixed(2)}</div>
+                                                    <div className={`w-2 h-2 rounded-full ${deposit.status === 'Completed' ? 'bg-green-500' : deposit.status === 'Rejected' ? 'bg-red-500' : 'bg-yellow-400'}`}></div>
+                                                    <div className={`text-sm font-bold ${deposit.status === 'Completed' ? 'text-green-400' : deposit.status === 'Rejected' ? 'text-red-400' : 'text-yellow-400'}`}>+ ₹{deposit.amount.toFixed(2)}</div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    <div className="text-xs opacity-80 truncate">{deposit.utr}</div>
-                                                    <div className="text-xs bg-green-500 bg-opacity-20 text-green-300 px-2 py-1 rounded">Completed</div>
+                                                    <div className="text-xs opacity-80 truncate">{deposit.utr || deposit.upiId}</div>
+                                                    <div className={`text-xs px-2 py-1 rounded ${deposit.status === 'Completed' ? 'bg-green-500 bg-opacity-20 text-green-300' : deposit.status === 'Rejected' ? 'bg-red-500 bg-opacity-20 text-red-300' : 'bg-yellow-400 bg-opacity-20 text-yellow-800'}`}>{deposit.status || 'Pending'}</div>
                                                 </div>
                                                 <div className="text-xs opacity-70">{new Date(deposit.timestamp).toLocaleString()}</div>
                                             </div>
@@ -1973,7 +1973,14 @@
                         {tab==='users' && (
                             <div className="mt-6 flex flex-col gap-3">
                                 <h2 className="text-xl font-bold mb-2">Manage Users</h2>
-                                {users.map(user => (
+                                <input
+                                    type="text"
+                                    placeholder="Search by Gmail ID..."
+                                    className="mb-2 p-2 rounded bg-gray-800 text-white w-full text-xs"
+                                    value={searchUser || ''}
+                                    onChange={e => setSearchUser(e.target.value)}
+                                />
+                                {(users.filter(user => !searchUser || user.email.toLowerCase().includes(searchUser.toLowerCase()))).map(user => (
                                     <div key={user.uid} className="bg-gray-900 rounded-lg p-3 shadow flex flex-col gap-2 mb-2">
                                         <div className="flex justify-between items-center">
                                             <span className="text-xs font-semibold break-all">{user.email}</span>
