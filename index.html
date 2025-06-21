@@ -470,11 +470,11 @@
                         {activeTab === 'game' && (
                             <div>
                                 <h3 className="text-lg font-semibold mb-3">Game Play History</h3>
-                                {gameHistory.length === 0 ? (
+                                {gameHistory.slice(0, 10).length === 0 ? (
                                     <p className="text-center opacity-70">No game history yet.</p>
                                 ) : (
                                     <div className="space-y-3 max-h-96 overflow-y-auto">
-                                        {gameHistory.map((game, index) => (
+                                        {gameHistory.slice(0, 10).map((game, index) => (
                                             <div key={game.period} className="flex items-center justify-between bg-black bg-opacity-20 rounded-lg p-3">
                                                 <div className="text-xs">{game.period}</div>
                                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${getResultColor(game.result)}`}>
@@ -498,11 +498,11 @@
                         {activeTab === 'deposit' && (
                             <div>
                                 <h3 className="text-lg font-semibold mb-3">Deposit History</h3>
-                                {depositHistory.length === 0 ? (
+                                {depositHistory.slice(0, 10).length === 0 ? (
                                     <p className="text-center opacity-70">No deposit history yet.</p>
                                 ) : (
                                     <div className="space-y-3 max-h-96 overflow-y-auto">
-                                        {depositHistory.map((deposit, index) => (
+                                        {depositHistory.slice(0, 10).map((deposit, index) => (
                                             <div key={index} className="flex items-center justify-between bg-black bg-opacity-20 rounded-lg p-3">
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -523,11 +523,11 @@
                         {activeTab === 'withdraw' && (
                             <div>
                                 <h3 className="text-lg font-semibold mb-3">Withdrawal History</h3>
-                                {withdrawHistory.length === 0 ? (
+                                {withdrawHistory.slice(0, 10).length === 0 ? (
                                     <p className="text-center opacity-70">No withdrawal history yet.</p>
                                 ) : (
                                     <div className="space-y-3 max-h-96 overflow-y-auto">
-                                        {withdrawHistory.map((withdraw, index) => {
+                                        {withdrawHistory.slice(0, 10).map((withdraw, index) => {
                                             // Calculate if 10 hours have passed since withdrawal
                                             const withdrawTime = new Date(withdraw.timestamp);
                                             const currentTime = new Date();
@@ -2032,7 +2032,7 @@
                                             <span className="text-xs px-2 py-1 rounded bg-gray-800">{w.status}</span>
                                         </div>
                                         <div className="flex gap-2 mt-2">
-                                            <button onClick={()=>handleAdminAction(()=>updateWithdrawalStatus(i, 'Completed', w), 'Withdrawal approved!')} className="flex-1 px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs">Approve</button>
+                                            <button onClick={()=>handleAdminAction(()=>window.approveWithdrawal(w, i), 'Withdrawal approved!')} className="flex-1 px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs">Approve</button>
                                             <button onClick={()=>handleAdminAction(()=>updateWithdrawalStatus(i, 'Rejected', w), 'Withdrawal rejected!')} className="flex-1 px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs">Reject</button>
                                         </div>
                                     </div>
@@ -2315,23 +2315,41 @@
                 refreshAdminData();
             };
             window.approveDeposit = async (dep, idx) => {
-                // Mark deposit as completed and add to user balance
                 const userRef = db.collection('users').doc(dep.user);
                 const userDoc = await userRef.get();
                 if (!userDoc.exists) return;
                 const userData = userDoc.data();
-                // Update depositHistory
-                const depositHistory = (userData.depositHistory || []).map(d => {
+                // Update depositHistory: mark as completed, keep only last 10
+                let depositHistory = (userData.depositHistory || []).map(d => {
                     if (d.timestamp === dep.timestamp && d.amount === dep.amount) {
                         return { ...d, status: 'Completed' };
                     }
                     return d;
                 });
+                depositHistory = depositHistory.slice(0, 10);
                 // Add to balance
                 const newBalance = (userData.balance || 0) + Number(dep.amount);
                 await userRef.update({ depositHistory, balance: newBalance });
-                updateDepositStatus(idx, 'Completed', dep);
-                refreshAdminData();
+                // Remove from admin panel (pending list)
+                window.refreshAdminData();
+            };
+            // Update approveWithdrawal to remove the withdrawal from admin panel after approval
+            window.approveWithdrawal = async (w, idx) => {
+                const userRef = db.collection('users').doc(w.user);
+                const userDoc = await userRef.get();
+                if (!userDoc.exists) return;
+                const userData = userDoc.data();
+                // Update withdrawHistory: mark as completed, keep only last 10
+                let withdrawHistory = (userData.withdrawHistory || []).map(wd => {
+                    if (wd.timestamp === w.timestamp && wd.amount === w.amount) {
+                        return { ...wd, status: 'Completed' };
+                    }
+                    return wd;
+                });
+                withdrawHistory = withdrawHistory.slice(0, 10);
+                await userRef.update({ withdrawHistory });
+                // Remove from admin panel (pending list)
+                window.refreshAdminData();
             };
             function refreshAdminData() {
                 if (currentUser && currentUser.email === 'moghaeashu@gmail.com') {
@@ -2355,7 +2373,7 @@
             }
             window.refreshAdminData = refreshAdminData;
             window.clearAllHistories = async () => {
-                if (!window.confirm('Are you sure you want to clear all history data for all users? This will keep only the last 10 deposit and withdrawal entries per user.')) return;
+                if (!window.confirm('Are you sure you want to clear all history data for all users? This will keep only the last 10 deposit, withdrawal, and game history entries per user.')) return;
                 const usersSnap = await db.collection('users').get();
                 const batch = db.batch();
                 usersSnap.forEach(doc => {
@@ -2363,7 +2381,8 @@
                     const data = doc.data();
                     const depositHistory = (data.depositHistory || []).slice(0, 10);
                     const withdrawHistory = (data.withdrawHistory || []).slice(0, 10);
-                    batch.update(userRef, { depositHistory, withdrawHistory, gameHistory: [] });
+                    const gameHistory = (data.gameHistory || []).slice(0, 10);
+                    batch.update(userRef, { depositHistory, withdrawHistory, gameHistory });
                 });
                 await batch.commit();
                 window.refreshAdminData();
