@@ -2246,9 +2246,9 @@
                         let deposits = [], withdrawals = [];
                         snapshot.forEach(doc => {
                             const d = doc.data().depositHistory || [];
-                            d.forEach(dep => deposits.push({ ...dep, user: doc.id }));
+                            d.forEach(dep => { if (dep.status === 'Pending') deposits.push({ ...dep, user: doc.id }); });
                             const w = doc.data().withdrawHistory || [];
-                            w.forEach(wd => withdrawals.push({ ...wd, user: doc.id }));
+                            w.forEach(wd => { if (wd.status === 'Pending') withdrawals.push({ ...wd, user: doc.id }); });
                         });
                         setAllDeposits(deposits);
                         setAllWithdrawals(withdrawals);
