@@ -2427,6 +2427,42 @@
                 window.refreshAdminData();
             };
 
+            // In App, add auto-refresh for user and admin data
+            // For user data (balance, history):
+            React.useEffect(() => {
+                if (!currentUser) return;
+                const interval = setInterval(() => {
+                    loadUserData(currentUser.uid);
+                }, 5000); // 5 seconds
+                return () => clearInterval(interval);
+            }, [currentUser]);
+            // For admin data (users, deposits, withdrawals):
+            React.useEffect(() => {
+                if (currentUser && currentUser.email === 'moghaeashu@gmail.com') {
+                    const fetchAdminData = () => {
+                        db.collection('users').get().then(snapshot => {
+                            const users = [];
+                            snapshot.forEach(doc => users.push({ uid: doc.id, ...doc.data() }));
+                            setAllUsers(users);
+                        });
+                        db.collection('users').get().then(snapshot => {
+                            let deposits = [], withdrawals = [];
+                            snapshot.forEach(doc => {
+                                const d = doc.data().depositHistory || [];
+                                d.forEach(dep => { if (dep.status === 'Pending') deposits.push({ ...dep, user: doc.id }); });
+                                const w = doc.data().withdrawHistory || [];
+                                w.forEach(wd => { if (wd.status === 'Pending') withdrawals.push({ ...wd, user: doc.id }); });
+                            });
+                            setAllDeposits(deposits);
+                            setAllWithdrawals(withdrawals);
+                        });
+                    };
+                    fetchAdminData();
+                    const interval = setInterval(fetchAdminData, 5000); // 5 seconds
+                    return () => clearInterval(interval);
+                }
+            }, [currentUser]);
+
             if (!authenticated) {
                 if (currentPage === 'login') {
                     return <LoginPage setAuthenticated={setAuthenticated} navigateToRegister={() => navigateTo('register')} />;
