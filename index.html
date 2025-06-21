@@ -1999,7 +1999,7 @@
                         {tab==='deposits' && (
                             <div className="mt-6 flex flex-col gap-3">
                                 <h2 className="text-xl font-bold mb-2">Manage Deposits</h2>
-                                {deposits.map((dep,i) => (
+                                {(deposits.filter(dep => dep.status === 'Pending')).map((dep,i) => (
                                     <div key={i} className="bg-gray-900 rounded-lg p-3 shadow flex flex-col gap-2 mb-2">
                                         <div className="flex justify-between items-center">
                                             <span className="text-xs font-semibold break-all">{dep.upiId}</span>
@@ -2020,7 +2020,7 @@
                         {tab==='withdrawals' && (
                             <div className="mt-6 flex flex-col gap-3">
                                 <h2 className="text-xl font-bold mb-2">Manage Withdrawals</h2>
-                                {withdrawals.map((w,i) => (
+                                {(withdrawals.filter(w => w.status === 'Pending')).map((w,i) => (
                                     <div key={i} className="bg-gray-900 rounded-lg p-3 shadow flex flex-col gap-2 mb-2">
                                         <div className="flex justify-between items-center">
                                             <span className="text-xs font-semibold break-all">{w.upiId}</span>
