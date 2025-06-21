@@ -1940,6 +1940,7 @@
             const [tab, setTab] = React.useState('dashboard');
             const [loading, setLoading] = React.useState(false);
             const [message, setMessage] = React.useState(null);
+            const [searchUser, setSearchUser] = React.useState('');
             React.useEffect(() => {
                 if (!currentUser || currentUser.email !== 'moghaeashu@gmail.com') {
                     navigateTo('gameSelection');
@@ -2015,7 +2016,7 @@
                                         )}
                                         <div className="flex gap-2 mt-2">
                                             <button onClick={()=>handleAdminAction(()=>window.approveDeposit(dep, i), 'Deposit approved!')} className="flex-1 px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs">Approve</button>
-                                            <button onClick={()=>handleAdminAction(()=>updateDepositStatus(i, 'Rejected', dep), 'Deposit rejected!')} className="flex-1 px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs">Reject</button>
+                                            <button onClick={()=>handleAdminAction(()=>window.rejectDeposit(dep, i), 'Deposit rejected!')} className="flex-1 px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs">Reject</button>
                                         </div>
                                     </div>
                                 ))}
@@ -2033,7 +2034,7 @@
                                         </div>
                                         <div className="flex gap-2 mt-2">
                                             <button onClick={()=>handleAdminAction(()=>window.approveWithdrawal(w, i), 'Withdrawal approved!')} className="flex-1 px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs">Approve</button>
-                                            <button onClick={()=>handleAdminAction(()=>updateWithdrawalStatus(i, 'Rejected', w), 'Withdrawal rejected!')} className="flex-1 px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs">Reject</button>
+                                            <button onClick={()=>handleAdminAction(()=>window.rejectWithdrawal(w, i), 'Withdrawal rejected!')} className="flex-1 px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs">Reject</button>
                                         </div>
                                     </div>
                                 ))}
@@ -2319,7 +2320,6 @@
                 const userDoc = await userRef.get();
                 if (!userDoc.exists) return;
                 const userData = userDoc.data();
-                // Update depositHistory: mark as completed, keep only last 10
                 let depositHistory = (userData.depositHistory || []).map(d => {
                     if (d.timestamp === dep.timestamp && d.amount === dep.amount) {
                         return { ...d, status: 'Completed' };
@@ -2327,19 +2327,33 @@
                     return d;
                 });
                 depositHistory = depositHistory.slice(0, 10);
-                // Add to balance
                 const newBalance = (userData.balance || 0) + Number(dep.amount);
                 await userRef.update({ depositHistory, balance: newBalance });
                 // Remove from admin panel (pending list)
+                window.removeDepositFromAdmin(idx);
                 window.refreshAdminData();
             };
-            // Update approveWithdrawal to remove the withdrawal from admin panel after approval
+            window.rejectDeposit = async (dep, idx) => {
+                const userRef = db.collection('users').doc(dep.user);
+                const userDoc = await userRef.get();
+                if (!userDoc.exists) return;
+                const userData = userDoc.data();
+                let depositHistory = (userData.depositHistory || []).map(d => {
+                    if (d.timestamp === dep.timestamp && d.amount === dep.amount) {
+                        return { ...d, status: 'Rejected' };
+                    }
+                    return d;
+                });
+                depositHistory = depositHistory.slice(0, 10);
+                await userRef.update({ depositHistory });
+                window.removeDepositFromAdmin(idx);
+                window.refreshAdminData();
+            };
             window.approveWithdrawal = async (w, idx) => {
                 const userRef = db.collection('users').doc(w.user);
                 const userDoc = await userRef.get();
                 if (!userDoc.exists) return;
                 const userData = userDoc.data();
-                // Update withdrawHistory: mark as completed, keep only last 10
                 let withdrawHistory = (userData.withdrawHistory || []).map(wd => {
                     if (wd.timestamp === w.timestamp && wd.amount === w.amount) {
                         return { ...wd, status: 'Completed' };
@@ -2348,9 +2362,39 @@
                 });
                 withdrawHistory = withdrawHistory.slice(0, 10);
                 await userRef.update({ withdrawHistory });
-                // Remove from admin panel (pending list)
+                window.removeWithdrawalFromAdmin(idx);
                 window.refreshAdminData();
             };
+            window.rejectWithdrawal = async (w, idx) => {
+                const userRef = db.collection('users').doc(w.user);
+                const userDoc = await userRef.get();
+                if (!userDoc.exists) return;
+                const userData = userDoc.data();
+                let withdrawHistory = (userData.withdrawHistory || []).map(wd => {
+                    if (wd.timestamp === w.timestamp && wd.amount === w.amount) {
+                        return { ...wd, status: 'Rejected' };
+                    }
+                    return wd;
+                });
+                withdrawHistory = withdrawHistory.slice(0, 10);
+                await userRef.update({ withdrawHistory });
+                window.removeWithdrawalFromAdmin(idx);
+                window.refreshAdminData();
+            };
+            // Helper functions to remove from admin panel lists
+            window.removeDepositFromAdmin = (idx) => {
+                if (typeof idx === 'number' && window.setAllDeposits) {
+                    window.setAllDeposits(deps => deps.filter((_, i) => i !== idx));
+                }
+            };
+            window.removeWithdrawalFromAdmin = (idx) => {
+                if (typeof idx === 'number' && window.setAllWithdrawals) {
+                    window.setAllWithdrawals(wds => wds.filter((_, i) => i !== idx));
+                }
+            };
+            // In App, expose setAllDeposits and setAllWithdrawals to window
+            window.setAllDeposits = setAllDeposits;
+            window.setAllWithdrawals = setAllWithdrawals;
             function refreshAdminData() {
                 if (currentUser && currentUser.email === 'moghaeashu@gmail.com') {
                     db.collection('users').get().then(snapshot => {
